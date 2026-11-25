@@ -13,6 +13,7 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "validate:mic": "VALIDATE_MIC=1 vitest run --silent=false",
     "e2e": "playwright test",
     "typecheck": "vue-tsc --build",
     "dict": "node scripts/build-stress-dict.mjs",

@@ -32,7 +32,8 @@ vi.mock('@capacitor/share', () => ({ Share: { share } }));
 
 const { backAction, onAppHidden } = await import('@/platform/lifecycle');
 const { allowSleep, keepAwake } = await import('@/platform/wakeLock');
-const { isShareCancel, saveTextFile } = await import('@/platform/saveFile');
+const { isShareCancel, saveBinaryFile, saveTextFile, toBase64 } =
+  await import('@/platform/saveFile');
 
 class FakeDocument extends EventTarget {
   visibilityState: 'visible' | 'hidden' = 'visible';
@@ -154,6 +155,15 @@ describe('REQ-DATA-3: saveTextFile in the APK', () => {
     await expect(saveTextFile('a.json', '{}', 'application/json')).resolves.toBe('cancelled');
     share.mockRejectedValueOnce(new Error('No app to handle'));
     await expect(saveTextFile('a.json', '{}', 'application/json')).rejects.toThrow();
+  });
+
+  it('REQ-MIC-6: binary files go to the cache as base64', async () => {
+    native.value = true;
+    await saveBinaryFile('a.wav', new Uint8Array([82, 73, 70, 70, 0, 255]), 'audio/wav');
+    const arg = writeFile.mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(arg).toMatchObject({ path: 'a.wav', data: 'UklGRgD/', directory: 'CACHE' });
+    expect(arg.encoding).toBeUndefined();
+    expect(toBase64(new Uint8Array(0x9000).fill(65))).toBe(btoa('A'.repeat(0x9000)));
   });
 
   it('recognises the cancel message', () => {

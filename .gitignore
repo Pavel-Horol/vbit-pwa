@@ -8,3 +8,6 @@ blob-report
 .vite
 .DS_Store
 *.local
+
+# REQ-MIC-6: записи голоса для проверки детектора — не публикуем
+/validation/

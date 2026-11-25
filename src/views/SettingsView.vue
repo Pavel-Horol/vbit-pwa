@@ -10,6 +10,7 @@ import { applyRoot, snapshotRoot } from '@/stores/persist';
 import { useProgressStore } from '@/stores/progress';
 import { useSettingsStore } from '@/stores/settings';
 import TickVolume from '@/components/TickVolume.vue';
+import DetectorCheck from '@/components/DetectorCheck.vue';
 import { isNative } from '@/platform/native';
 import { saveTextFile } from '@/platform/saveFile';
 
@@ -220,6 +221,8 @@ function confirmImport() {
         </button>
       </div>
     </div>
+
+    <DetectorCheck />
 
     <div class="card block">
       <h3>Данные</h3>

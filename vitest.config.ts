@@ -7,7 +7,10 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'node',
-      include: ['tests/unit/**/*.test.ts'],
+      // REQ-MIC-6: проверка на записях из validation/ — отдельно, `npm run validate:mic`
+      include: process.env.VALIDATE_MIC
+        ? ['tests/validation/**/*.test.ts']
+        : ['tests/unit/**/*.test.ts'],
       root: fileURLToPath(new URL('./', import.meta.url)),
     },
   }),

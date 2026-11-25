@@ -7,9 +7,28 @@ export type SaveResult = 'saved' | 'cancelled';
  * PWA — обычное скачивание. APK — `<a download>` в WebView не работает, поэтому файл
  * пишется во временную папку приложения и отдаётся системному меню «Поделиться».
  */
-export async function saveTextFile(name: string, text: string, mime: string): Promise<SaveResult> {
+export const saveTextFile = (name: string, text: string, mime: string) =>
+  saveFile(name, text, mime);
+
+/** REQ-MIC-6: двоичный файл (WAV для проверки детектора). */
+export const saveBinaryFile = (name: string, bytes: Uint8Array, mime: string) =>
+  saveFile(name, bytes, mime);
+
+/** В APK Filesystem принимает двоичные данные только в base64. */
+export function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+async function saveFile(
+  name: string,
+  data: string | Uint8Array,
+  mime: string,
+): Promise<SaveResult> {
   if (!isNative()) {
-    downloadInBrowser(name, text, mime);
+    downloadInBrowser(name, data, mime);
     return 'saved';
   }
   const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
@@ -18,9 +37,8 @@ export async function saveTextFile(name: string, text: string, mime: string): Pr
   ]);
   const { uri } = await Filesystem.writeFile({
     path: name,
-    data: text,
     directory: Directory.Cache,
-    encoding: Encoding.UTF8,
+    ...(typeof data === 'string' ? { data, encoding: Encoding.UTF8 } : { data: toBase64(data) }),
   });
   try {
     await Share.share({ title: name, files: [uri] });
@@ -37,8 +55,8 @@ export function isShareCancel(e: unknown): boolean {
   return /cancel/i.test(msg);
 }
 
-function downloadInBrowser(name: string, text: string, mime: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+function downloadInBrowser(name: string, data: string | Uint8Array, mime: string) {
+  const url = URL.createObjectURL(new Blob([data as BlobPart], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
