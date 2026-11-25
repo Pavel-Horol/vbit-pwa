@@ -2,6 +2,9 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { CAL_CLICKS, CAL_IGNORE_TAPS, calibrationOffset } from '@/core/calibration';
 import { startCalibration, type Calibration } from '@/audio/calibrate';
+import { calibrateMic, type MicCalibrationRun } from '@/audio/mic/calibrate';
+import { MIC_CAL_CLICKS } from '@/core/micScore';
+import { micErrorText } from '@/lib/mic';
 import { exportData, parseImport, type RootData } from '@/stores/schema';
 import { applyRoot, snapshotRoot } from '@/stores/persist';
 import { useProgressStore } from '@/stores/progress';
@@ -49,6 +52,52 @@ function resetCal() {
   cal.value = 'idle';
 }
 onBeforeUnmount(() => session?.cancel());
+
+// --- REQ-MIC-3: калибровка микрофона ---
+type MicCalState = 'idle' | 'running' | 'done' | 'failed';
+const mic = ref<MicCalState>('idle');
+const micMsg = ref('');
+let micRun: MicCalibrationRun | null = null;
+
+async function startMicCal() {
+  micRun?.cancel();
+  mic.value = 'running';
+  micMsg.value = '';
+  const run = calibrateMic();
+  micRun = run;
+  try {
+    const r = await run.result;
+    if (micRun !== run) return;
+    if (r.ok) {
+      settings.inputOffsetMs = r.offsetMs;
+      settings.micClickDb = r.clickLevel;
+      micMsg.value = `Готово: задержка ${r.offsetMs} мс, услышано щелчков — ${r.found} из ${MIC_CAL_CLICKS}.`;
+      mic.value = 'done';
+    } else {
+      micMsg.value =
+        r.error === 'not_heard'
+          ? `Микрофон услышал только ${r.found} из ${MIC_CAL_CLICKS} щелчков. Сними наушники, сделай звук громче и повтори в тишине.`
+          : 'Замер получился неровным. Повтори в тишине и не двигай телефон.';
+      mic.value = 'failed';
+    }
+  } catch (e) {
+    if (micRun !== run) return;
+    micMsg.value = micErrorText(e);
+    mic.value = 'failed';
+  } finally {
+    if (micRun === run) micRun = null;
+  }
+}
+function resetMicCal() {
+  micRun?.cancel();
+  micRun = null;
+  settings.inputOffsetMs = undefined;
+  settings.micClickDb = undefined;
+  settings.micScoring = false;
+  mic.value = 'idle';
+  micMsg.value = '';
+}
+onBeforeUnmount(() => micRun?.cancel());
 
 // --- REQ-DATA-3: экспорт / импорт ---
 // В APK файл уходит в системное меню «Поделиться» (этап 3).
@@ -142,6 +191,31 @@ function confirmImport() {
           {{ cal === 'idle' ? 'Начать калибровку' : 'Повторить' }}
         </button>
         <button type="button" :disabled="settings.outputOffsetMs === 0" @click="resetCal">
+          Сбросить
+        </button>
+      </div>
+    </div>
+
+    <div class="card block" data-testid="mic-calibration">
+      <h3>Калибровка микрофона</h3>
+      <p class="small mute" style="margin: 0">
+        Нужна, чтобы приложение оценивало круги по голосу. Сними наушники и сделай звук погромче:
+        прозвучат {{ MIC_CAL_CLICKS }} щелчков, микрофон их услышит. Во время замера помолчи.
+      </p>
+      <p style="margin: 0">
+        Задержка микрофона:
+        <b data-testid="input-offset">{{
+          settings.inputOffsetMs === undefined ? 'не измерена' : `${settings.inputOffsetMs} мс`
+        }}</b>
+      </p>
+      <p v-if="mic === 'running'" class="small" role="status">Слушаю щелчки…</p>
+      <p v-if="mic === 'done'" class="small" role="status">{{ micMsg }}</p>
+      <p v-if="mic === 'failed'" class="err" role="status">{{ micMsg }}</p>
+      <div v-if="mic !== 'running'" class="row">
+        <button type="button" class="pri" @click="startMicCal">
+          {{ settings.inputOffsetMs === undefined ? 'Измерить' : 'Измерить заново' }}
+        </button>
+        <button type="button" :disabled="settings.inputOffsetMs === undefined" @click="resetMicCal">
           Сбросить
         </button>
       </div>
