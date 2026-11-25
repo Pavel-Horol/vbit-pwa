@@ -218,7 +218,8 @@ export function fromPrototype(get: (key: string) => string | null, now = 0): Roo
 // --- REQ-DATA-3: экспорт / импорт одним JSON-файлом (без аудиозаписей) ---
 
 export function exportData(root: RootData, now = Date.now()): string {
-  const { recordings: _recordings, ...progress } = root.progress;
+  const progress = { ...root.progress };
+  delete progress.recordings;
   return JSON.stringify({ app: 'vbit', exportedAt: now, ...root, progress }, null, 2);
 }
 
