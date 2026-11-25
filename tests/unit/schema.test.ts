@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { defaultRoot, fromPrototype, migrate, SCHEMA_VERSION } from '@/stores/schema';
+import {
+  defaultRoot,
+  exportData,
+  fromPrototype,
+  migrate,
+  parseImport,
+  SCHEMA_VERSION,
+} from '@/stores/schema';
 import { STEPS, WEEKS, PRESETS } from '@/data';
 
 const ls = (data: Record<string, unknown>) => (k: string) =>
@@ -100,5 +107,81 @@ describe('REQ-SES-1: steps data', () => {
   });
   it('REQ-SES-2: week BPMs 75/80/85/90', () => {
     expect(WEEKS.map((w) => w.bpm)).toEqual([75, 80, 85, 90]);
+  });
+});
+
+describe('stage 2: texts sanitizing', () => {
+  it('stress override -1 (no stress) is kept, junk is dropped', () => {
+    const root = migrate({
+      texts: {
+        texts: [{ id: 'a', stressOverrides: { я: -1, мама: 1, плохо: -2, ещё: 1.5, х: 'a' } }],
+      },
+    });
+    expect(root.texts.texts[0]!.stressOverrides).toEqual({ я: -1, мама: 1 });
+  });
+
+  it('line progress is sanitized', () => {
+    const root = migrate({
+      texts: {
+        texts: [
+          {
+            id: 'a',
+            targetBpm: 100,
+            lines: [
+              { stage: 3, bpm: 90, cleanStreak: 2, failStreak: 0 },
+              { stage: 9, bpm: 900, cleanStreak: -1 },
+              'мусор',
+            ],
+          },
+        ],
+      },
+    });
+    expect(root.texts.texts[0]!.lines).toEqual([
+      { stage: 3, bpm: 90, cleanStreak: 2, failStreak: 0 },
+      { stage: 1, bpm: 180, cleanStreak: 0, failStreak: 0 },
+      { stage: 1, bpm: 70, cleanStreak: 0, failStreak: 0 },
+    ]);
+  });
+});
+
+describe('REQ-DATA-3: export / import', () => {
+  it('round trip keeps everything except recordings', () => {
+    const root = defaultRoot(5);
+    root.progress.sessions = 12;
+    root.progress.recordings = [{ date: '2026-11-25', blobKey: 'k' }];
+    root.texts.texts[0]!.title = 'Куплет';
+    const text = exportData(root, 99);
+    const back = parseImport(text);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.root.progress.sessions).toBe(12);
+    expect(back.root.progress.recordings).toBeUndefined();
+    expect(back.root.texts.texts[0]!.title).toBe('Куплет');
+    expect(JSON.parse(text)).toMatchObject({
+      app: 'vbit',
+      exportedAt: 99,
+      schemaVersion: SCHEMA_VERSION,
+    });
+  });
+
+  it('not JSON → not_json', () => {
+    expect(parseImport('{oops')).toEqual({ ok: false, error: 'not_json' });
+  });
+
+  it('JSON from somewhere else → not_vbit', () => {
+    expect(parseImport('{"hello": 1}')).toEqual({ ok: false, error: 'not_vbit' });
+    expect(parseImport('[1,2]')).toEqual({ ok: false, error: 'not_vbit' });
+  });
+
+  it('imported data goes through the same sanitizers', () => {
+    const r = parseImport(
+      JSON.stringify({ app: 'vbit', schemaVersion: 1, settings: { week: 9, leadMs: 999 } }),
+    );
+    expect(r.ok && r.root.settings).toEqual({
+      week: 1,
+      tickVolume: 1,
+      leadMs: 150,
+      outputOffsetMs: 0,
+    });
   });
 });

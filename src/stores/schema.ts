@@ -1,7 +1,16 @@
 // REQ-DATA-1/2: корень данных, миграции схемы и импорт из localStorage прототипа.
 // Чистые функции: без IndexedDB/localStorage, чтобы покрыть тестами.
-import type { DrillMode, DrillSet, Progress, Settings, Text } from '@/core/types';
+import type {
+  DrillMode,
+  DrillSet,
+  LadderStage,
+  LineProgress,
+  Progress,
+  Settings,
+  Text,
+} from '@/core/types';
 import { clampBpm } from '@/core/timeline';
+import { initialProgress } from '@/core/ladder';
 import { PRESETS } from '@/data';
 
 export const SCHEMA_VERSION = 1;
@@ -82,8 +91,19 @@ function sanitizeProgress(v: unknown, d: Progress): Progress {
   };
 }
 
+function sanitizeLine(v: unknown, targetBpm: number): LineProgress {
+  if (!isObj(v)) return initialProgress(targetBpm);
+  return {
+    stage: oneOf(v.stage, [1, 2, 3, 4, 5, 6] as const, 1 as LadderStage),
+    bpm: clampBpm(num(v.bpm, initialProgress(targetBpm).bpm)),
+    cleanStreak: Math.round(num(v.cleanStreak, 0, 0, 2)),
+    failStreak: Math.round(num(v.failStreak, 0, 0, 1)),
+  };
+}
+
 function sanitizeText(v: unknown, d: Text): Text {
   const t = isObj(v) ? v : {};
+  const targetBpm = clampBpm(num(t.targetBpm, d.targetBpm));
   return {
     id: typeof t.id === 'string' && t.id ? t.id : d.id,
     title: typeof t.title === 'string' ? t.title : d.title,
@@ -91,15 +111,16 @@ function sanitizeText(v: unknown, d: Text): Text {
     mode: oneOf(t.mode, ['manual', 'auto', 'stress'] as const, d.mode),
     perBeat: oneOf(t.perBeat, [1, 2, 3, 4] as const, d.perBeat),
     lineStartsBar: typeof t.lineStartsBar === 'boolean' ? t.lineStartsBar : d.lineStartsBar,
-    targetBpm: clampBpm(num(t.targetBpm, d.targetBpm)),
+    targetBpm,
+    // индекс ударного слога; -1 — «без ударения» (REQ-STR-7)
     stressOverrides: isObj(t.stressOverrides)
       ? (Object.fromEntries(
           Object.entries(t.stressOverrides).filter(
-            ([, i]) => Number.isInteger(i) && (i as number) >= 0,
+            ([, i]) => Number.isInteger(i) && (i as number) >= -1,
           ),
         ) as Record<string, number>)
       : {},
-    lines: Array.isArray(t.lines) ? (t.lines as Text['lines']) : [],
+    lines: Array.isArray(t.lines) ? t.lines.map((l) => sanitizeLine(l, targetBpm)) : [],
     updatedAt: num(t.updatedAt, d.updatedAt),
   };
 }
@@ -192,4 +213,28 @@ export function fromPrototype(get: (key: string) => string | null, now = 0): Roo
   );
   root.importedFromPrototype = true;
   return root;
+}
+
+// --- REQ-DATA-3: экспорт / импорт одним JSON-файлом (без аудиозаписей) ---
+
+export function exportData(root: RootData, now = Date.now()): string {
+  const { recordings: _recordings, ...progress } = root.progress;
+  return JSON.stringify({ app: 'vbit', exportedAt: now, ...root, progress }, null, 2);
+}
+
+export type ImportResult =
+  { ok: true; root: RootData } | { ok: false; error: 'not_json' | 'not_vbit' };
+
+export function parseImport(text: string, now = Date.now()): ImportResult {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'not_json' };
+  }
+  if (!isObj(data) || (data.app !== 'vbit' && typeof data.schemaVersion !== 'number'))
+    return { ok: false, error: 'not_vbit' };
+  const root = migrate(data, now);
+  delete root.progress.recordings;
+  return { ok: true, root };
 }
