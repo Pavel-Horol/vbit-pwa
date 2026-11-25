@@ -4,7 +4,8 @@ import { addDay, dayKey, streak } from '@/core/days';
 import { defaultRoot } from './schema';
 
 export const useProgressStore = defineStore('progress', {
-  state: (): Progress => defaultRoot().progress,
+  // recordings объявлен сразу — см. комментарий в settings.ts
+  state: (): Progress => ({ recordings: [], ...defaultRoot().progress }),
   getters: {
     streak: (s) => streak(s.days, new Date()),
   },
