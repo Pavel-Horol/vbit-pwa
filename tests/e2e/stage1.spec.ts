@@ -121,6 +121,7 @@ test('every screen: no horizontal scroll with real content', async ({ page }) =>
     '#/texts/main',
     '#/texts/main/drill',
     '#/settings',
+    '#/progress',
   ]) {
     await page.goto('./' + hash);
     await page.waitForLoadState('networkidle');
