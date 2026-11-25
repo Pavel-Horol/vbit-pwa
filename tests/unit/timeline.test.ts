@@ -8,6 +8,7 @@ import {
   countInBar,
   createClock,
   loopBars,
+  loopWithPickup,
   schedule,
   withCountIn,
 } from '@/core/timeline';
@@ -148,6 +149,49 @@ describe('REQ-AUD-9: count-in and looping', () => {
   it('loopBars of an empty layout gives a silent bar', () => {
     const bar = loopBars([])(3);
     expect(bar.every((b) => b.syllables.length === 1 && b.syllables[0]!.text === '')).toBe(true);
+  });
+});
+
+describe('REQ-LAY-3: pickup in count-in and loop', () => {
+  const V = layout({
+    raw: '> на дво- | РЕ тра- | ВА на тра- | ВЕ дро- | ВА',
+    mode: 'manual',
+    perBeat: 2,
+    lineStartsBar: true,
+    stressOverrides: {},
+  });
+  const texts = (b: Bar) => b.map((x) => x.syllables.map((s) => s.text || '_'));
+
+  it('count-in plays the first pickup in its 4th beat; slot 0 still clicks as a beat', () => {
+    const g = withCountIn(loopBars(V.bars), V.pickup);
+    expect(texts(g(0))).toEqual([['1'], ['2'], ['3'], ['на', 'дво']]);
+    const ev = beatEvents(g(0), 0, 3, 0, 1, mix);
+    expect(ev.map((e) => e.kind)).toEqual(['beat', 'unstressed']);
+  });
+
+  it('loop: pickup goes into the last beat of the text if it is a pause', () => {
+    const two = layout({
+      raw: '> на | ТЫ',
+      mode: 'manual',
+      perBeat: 2,
+      lineStartsBar: true,
+      stressOverrides: {},
+    });
+    const loop = loopWithPickup(two.bars, two.pickup);
+    expect(loop.map(texts)).toEqual([[['ТЫ'], ['_'], ['_'], ['_', 'на']]]);
+    expect(texts(two.bars[0]!)[3]).toEqual(['_']); // исходные такты не меняются
+  });
+
+  it('loop: last beat sounds → a pause bar with the pickup is added', () => {
+    const loop = loopWithPickup(V.bars, V.pickup);
+    expect(loop.map(texts)).toEqual([
+      [['РЕ', 'тра'], ['ВА', 'на', 'тра'], ['ВЕ', 'дро'], ['ВА']],
+      [['_'], ['_'], ['_'], ['на', 'дво']],
+    ]);
+  });
+
+  it('no pickup → bars unchanged', () => {
+    expect(loopWithPickup([karl], undefined)).toEqual([karl]);
   });
 });
 

@@ -99,7 +99,23 @@ export const loopBars = (bars: Bar[]) => {
   return (i: number): Bar => (bars.length ? bars[i % bars.length]! : silent);
 };
 
-export const withCountIn =
-  (getBar: (i: number) => Bar) =>
-  (i: number): Bar =>
-    i === 0 ? countInBar() : getBar(i - 1);
+const isPause = (b: Beat) => b.syllables.every((s) => s.text === '');
+
+/**
+ * REQ-LAY-3: такты для игры по кругу. Затакт первой строки встаёт в последнюю долю текста, если
+ * она пауза; иначе в конец добавляется такт пауз с затактом в 4-й доле. Исходные такты не меняются.
+ */
+export function loopWithPickup(bars: Bar[], pickup: Beat | undefined): Bar[] {
+  if (!pickup || !bars.length) return bars;
+  const last = bars[bars.length - 1]!;
+  if (isPause(last[3])) return [...bars.slice(0, -1), [last[0], last[1], last[2], pickup]];
+  const p = silentBar();
+  return [...bars, [p[0], p[1], p[2], pickup]];
+}
+
+/** REQ-AUD-9 + REQ-LAY-3: отсчёт перед текстом; затакт первой строки — в 4-й доле отсчёта. */
+export const withCountIn = (getBar: (i: number) => Bar, pickup?: Beat) => {
+  const countIn = countInBar();
+  if (pickup) countIn[3] = pickup;
+  return (i: number): Bar => (i === 0 ? countIn : getBar(i - 1));
+};
