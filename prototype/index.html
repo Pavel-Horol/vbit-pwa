@@ -1,0 +1,1521 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#17131c" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon-192.png" />
+    <title>В бит — тренажёр читки</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Unbounded:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* VOICE: тренер в студии — коротко, по делу, на «ты»
+IDEA: пульт драм-машины: доли — пэды, красная лампа записи
+PICTURE: большая сетка такта, слоги загораются в бит
+COLOUR and TYPE: ночная студия #17131c, панели #221d29, лампа #ff5a3c; Unbounded + Manrope
+LAYOUT: одна колонка до 760px, навигация снизу, как в приложении */
+      :root {
+        color-scheme: dark;
+        --bg: #17131c;
+        --pan: #221d29;
+        --pan2: #2c2535;
+        --line: #3a3245;
+        --ink: #f4efe8;
+        --mute: #aca3b8;
+        --acc: #ff5a3c;
+        --accInk: #1a0d09;
+        --err: #ff8a7a;
+      }
+      * {
+        box-sizing: border-box;
+        min-width: 0;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      body {
+        font:
+          16px/1.55 Manrope,
+          system-ui,
+          sans-serif;
+        overflow-x: clip;
+        padding-bottom: calc(84px + env(safe-area-inset-bottom));
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: Unbounded, Manrope, sans-serif;
+        font-weight: 700;
+        line-height: 1.1;
+        margin: 0;
+        text-wrap: balance;
+      }
+      h1 {
+        font-size: clamp(36px, 9vw, 52px);
+      }
+      h2 {
+        font-size: clamp(22px, 5vw, 28px);
+      }
+      h3 {
+        font-size: 16px;
+        font-weight: 500;
+      }
+      p {
+        margin: 0.6em 0;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 20px max(4vw, 16px);
+      }
+      .view {
+        display: none;
+      }
+      .view.on {
+        display: block;
+      }
+      button,
+      select,
+      input,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--pan2);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--acc);
+        outline-offset: 2px;
+      }
+      .pri {
+        background: var(--acc);
+        color: var(--accInk);
+        border-color: var(--acc);
+        font-weight: 700;
+      }
+      .chip[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--bg);
+        border-color: var(--ink);
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .card {
+        background: var(--pan);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+      }
+      .mute {
+        color: var(--mute);
+      }
+      .small {
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .pad {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 5px;
+        background: var(--pan2);
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      .pl {
+        font-size: 12px;
+        color: var(--mute);
+        text-align: center;
+        line-height: 1.2;
+        padding-top: 2px;
+      }
+      .cells {
+        display: flex;
+        gap: 3px;
+        flex: 1;
+        min-height: 58px;
+      }
+      .cell {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: clamp(14px, 3.6vw, 18px);
+        color: var(--mute);
+        text-align: center;
+        white-space: nowrap;
+        padding: 2px 3px;
+        transition: background 0.05s;
+      }
+      .cell.f {
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .cell.rest {
+        opacity: 0.35;
+      }
+      .cell.on {
+        background: var(--acc);
+        color: var(--accInk);
+        opacity: 1;
+      }
+      .next {
+        margin-top: 8px;
+      }
+      .next .pad {
+        opacity: 0.5;
+      }
+      .next .pl {
+        display: none;
+      }
+      .next .cells {
+        min-height: 34px;
+      }
+      .next .cell {
+        font-size: 13px;
+      }
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .beatnums {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        font-size: 13px;
+        color: var(--mute);
+        text-align: center;
+        margin-bottom: 6px;
+      }
+      nav.tabs {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: var(--pan);
+        border-top: 1px solid var(--line);
+        padding-bottom: env(safe-area-inset-bottom);
+        z-index: 5;
+      }
+      nav.tabs a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-height: 60px;
+        color: var(--mute);
+        text-decoration: none;
+        font-size: 13px;
+      }
+      nav.tabs a i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--line);
+      }
+      nav.tabs a.on {
+        color: var(--ink);
+      }
+      nav.tabs a.on i {
+        background: var(--acc);
+      }
+      input[type="range"] {
+        flex: 1;
+        accent-color: var(--acc);
+        min-height: 44px;
+      }
+      input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--acc);
+      }
+      textarea {
+        width: 100%;
+        min-height: 150px;
+        background: var(--pan2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 16px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+      input[type="number"],
+      select {
+        min-height: 44px;
+        background: var(--pan2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0 10px;
+        font-size: 16px;
+      }
+      input[type="number"] {
+        width: 96px;
+      }
+      .big {
+        font-family: Unbounded, sans-serif;
+        font-size: clamp(44px, 14vw, 72px);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        margin: 14px 0;
+      }
+      .bar {
+        height: 6px;
+        background: var(--pan2);
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 8px 0 18px;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--acc);
+        width: 0;
+        transition: width 0.3s;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .stat {
+        background: var(--pan);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+      }
+      .stat b {
+        display: block;
+        font-family: Unbounded, sans-serif;
+        font-size: 22px;
+        font-weight: 500;
+      }
+      ul.tw {
+        margin: 8px 0 0;
+        padding-left: 20px;
+        color: var(--ink);
+      }
+      ul.tw li {
+        margin: 4px 0;
+      }
+      .lamp {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--acc);
+        margin-right: 8px;
+        vertical-align: 1px;
+      }
+      .prev {
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      .prev div {
+        margin: 2px 0;
+      }
+      .prev span {
+        display: inline-block;
+        padding: 0 7px;
+        margin: 2px;
+        border-radius: 6px;
+        background: var(--pan2);
+      }
+      .sp {
+        height: 16px;
+      }
+      .err {
+        color: var(--err);
+        font-size: 13px;
+      }
+      .hero {
+        display: grid;
+        gap: 18px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cell,
+        .bar i {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="view" id="v-home">
+        <div class="hero">
+          <div>
+            <p class="mute small" style="margin: 0 0 8px">
+              <span class="lamp"></span>тренажёр читки
+            </p>
+            <h1>В бит</h1>
+            <p class="mute">
+              15–20 минут в день: разминка, дыхание, дикция и ритм. Метроном
+              подсвечивает, какой слог говорить в каждый момент.
+            </p>
+          </div>
+          <div>
+            <div id="demo"></div>
+          </div>
+          <div class="card">
+            <h3>Какая у тебя неделя</h3>
+            <div class="row" id="weeks" style="margin: 10px 0"></div>
+            <p class="small mute" id="weekTip"></p>
+            <button class="pri" style="width: 100%" id="goSession">
+              Начать тренировку · ~18 мин
+            </button>
+          </div>
+          <div class="stats" id="stats"></div>
+        </div>
+      </section>
+
+      <section class="view" id="v-session">
+        <div class="row" style="justify-content: space-between">
+          <span class="small mute" id="sBlock"></span
+          ><span class="small mute" id="sCount"></span>
+        </div>
+        <div class="bar"><i id="sProg"></i></div>
+        <h2 id="sTitle"></h2>
+        <div class="big" id="sTime">0:30</div>
+        <div id="sBody" class="mute"></div>
+        <div class="sp"></div>
+        <div id="sExtra"></div>
+        <div class="sp"></div>
+        <div class="row">
+          <button id="sPrev">Назад</button
+          ><button class="pri" id="sPlay" style="flex: 1">Старт</button
+          ><button id="sNext">Дальше</button>
+        </div>
+      </section>
+
+      <section class="view" id="v-metronome">
+        <h2>Метроном-слоги</h2>
+        <p class="mute small">
+          Нога отбивает щелчки. Первый слог каждой доли — ровно на щелчке,
+          остальные делят промежуток поровну.
+        </p>
+        <p class="small mute" style="margin-bottom: 6px">Слогов на щелчок</p>
+        <div class="row" id="mModes"></div>
+        <p class="small mute" style="margin: 12px 0 6px">Что говорить</p>
+        <div class="row" id="mSets"></div>
+        <div class="sp"></div>
+        <div id="mDisp"></div>
+      </section>
+
+      <section class="view" id="v-text">
+        <h2>Мой текст в бит</h2>
+        <div class="row" id="tModes" style="margin-top: 12px"></div>
+        <p class="small mute" id="tHelp"></p>
+        <textarea
+          id="tIn"
+          aria-label="Текст для читки"
+          spellcheck="false"
+        ></textarea>
+        <div class="row" id="tNrow" style="margin-top: 10px">
+          <span class="small mute">Слогов на долю:</span
+          ><span class="row" id="tN"></span>
+        </div>
+        <label class="row small mute" style="gap: 8px; margin-top: 10px"
+          ><input type="checkbox" id="tNb" /> Каждая строка с нового
+          такта</label
+        >
+        <div class="row" style="margin-top: 10px">
+          <label for="tPre" class="small mute">Загрузить пример</label
+          ><select id="tPre" style="flex: 1"></select>
+        </div>
+        <div class="sp"></div>
+        <div class="card prev" id="tPrev"></div>
+        <div class="sp"></div>
+        <div id="tPlayer"></div>
+      </section>
+    </main>
+    <nav class="tabs" aria-label="Разделы">
+      <a href="#home" data-v="home"><i></i>Главная</a>
+      <a href="#session" data-v="session"><i></i>Тренировка</a>
+      <a href="#metronome" data-v="metronome"><i></i>Метроном</a>
+      <a href="#text" data-v="text"><i></i>Текст</a>
+    </nav>
+
+    <script>
+      {
+        const $ = (s) => document.querySelector(s);
+        const esc = (s) =>
+          String(s).replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
+        const store = {
+          get(k, d) {
+            try {
+              const v = localStorage.getItem("vbit_" + k);
+              return v == null ? d : JSON.parse(v);
+            } catch (e) {
+              return d;
+            }
+          },
+          set(k, v) {
+            try {
+              localStorage.setItem("vbit_" + k, JSON.stringify(v));
+            } catch (e) {}
+          },
+        };
+        const fmt = (s) =>
+          Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+        const plural = (n, a, b, c) => {
+          const m = n % 10,
+            h = n % 100;
+          return m === 1 && h !== 11
+            ? a
+            : m >= 2 && m <= 4 && (h < 12 || h > 14)
+              ? b
+              : c;
+        };
+        const dkey = (d) => d.toLocaleDateString("sv");
+
+        const WEEKS = [
+          {
+            bpm: 75,
+            tip: "Только чистота: скорость не важна, каждый слог чётко.",
+          },
+          { bpm: 80, tip: "В работе с куплетом добавь акценты на рифмах." },
+          { bpm: 85, tip: "Куплет в темпе оригинала, без шедоуинга." },
+          {
+            bpm: 90,
+            tip: "Новый куплет с другим флоу: был быстрый — бери медленный, и наоборот.",
+          },
+        ];
+        let week = store.get("week", 0);
+
+        const E = {
+          ctx: null,
+          on: false,
+          bpm: 80,
+          sub: false,
+          bars: null,
+          getBar: null,
+          next: 0,
+          beat: 0,
+          bar: 0,
+          q: [],
+          timer: 0,
+          raf: 0,
+          onEv: null,
+          stopCb: null,
+          wl: null,
+        };
+        function ac() {
+          if (!E.ctx)
+            E.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (E.ctx.state !== "running") E.ctx.resume();
+          return E.ctx;
+        }
+        function click(t, f, g) {
+          const c = E.ctx,
+            o = c.createOscillator(),
+            v = c.createGain();
+          o.frequency.value = f;
+          v.gain.setValueAtTime(g, t);
+          v.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+          o.connect(v);
+          v.connect(c.destination);
+          o.start(t);
+          o.stop(t + 0.05);
+        }
+        function chime() {
+          try {
+            const c = ac(),
+              t = c.currentTime + 0.02;
+            [880, 1320].forEach((f, i) => click(t + i * 0.17, f, 0.35));
+          } catch (e) {}
+        }
+        function barAt(i) {
+          if (!E.bars.has(i)) E.bars.set(i, E.getBar(i));
+          return E.bars.get(i);
+        }
+        function sched() {
+          const c = E.ctx;
+          while (E.next < c.currentTime + 0.12) {
+            const b = barAt(E.bar),
+              syl = b[E.beat] || [""],
+              n = syl.length,
+              spb = 60 / E.bpm;
+            for (let s = 0; s < n; s++) {
+              const t = E.next + (s * spb) / n;
+              if (s === 0) click(t, E.beat === 0 ? 1400 : 950, 0.55);
+              else if (E.sub) click(t, 650, 0.14);
+              E.q.push({ t, bar: E.bar, beat: E.beat, s });
+            }
+            E.next += spb;
+            if (++E.beat === 4) {
+              E.beat = 0;
+              E.bar++;
+            }
+          }
+        }
+        function loop() {
+          if (!E.on) return;
+          while (E.q.length && E.q[0].t <= E.ctx.currentTime) {
+            const e = E.q.shift();
+            E.onEv && E.onEv(e);
+          }
+          E.raf = requestAnimationFrame(loop);
+        }
+        function eStop() {
+          if (!E.on) return;
+          E.on = false;
+          clearInterval(E.timer);
+          cancelAnimationFrame(E.raf);
+          E.q = [];
+          try {
+            E.wl && E.wl.release();
+          } catch (e) {}
+          E.wl = null;
+          const cb = E.stopCb;
+          E.stopCb = null;
+          cb && cb();
+        }
+        function eStart(getBar, onEv, stopCb) {
+          eStop();
+          ac();
+          E.getBar = getBar;
+          E.bars = new Map();
+          E.onEv = onEv;
+          E.stopCb = stopCb;
+          E.on = true;
+          E.beat = 0;
+          E.bar = 0;
+          E.q = [];
+          E.next = E.ctx.currentTime + 0.15;
+          E.timer = setInterval(sched, 25);
+          sched();
+          loop();
+          try {
+            navigator.wakeLock &&
+              navigator.wakeLock
+                .request("screen")
+                .then((w) => (E.wl = w))
+                .catch(() => {});
+          } catch (e) {}
+        }
+
+        const SYL = {
+          1: ["та"],
+          2: ["та", "ка"],
+          3: ["та", "ка", "ти"],
+          4: ["та", "ка", "ти", "ки"],
+        };
+        const PBDG = ["па", "ба", "да", "га"];
+        const CONS = "бвгдзклмнпрстфхшжч",
+          VOW = "аоуиэы";
+        const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+        const drillBar = (mode, set) => (i) => {
+          const n =
+            mode === "auto" ? [1, 2, 4, 3][Math.floor(i / 2) % 4] : mode;
+          return [0, 1, 2, 3].map(() =>
+            set === "rand"
+              ? Array.from({ length: n }, () => rnd(CONS) + rnd(VOW))
+              : set === "pbdg"
+                ? PBDG.slice(0, n)
+                : SYL[n].slice(),
+          );
+        };
+        function textBar(beats) {
+          const bars = [];
+          for (let i = 0; i < beats.length; i += 4) {
+            const b = beats.slice(i, i + 4);
+            while (b.length < 4) b.push([""]);
+            bars.push(b);
+          }
+          if (!bars.length) bars.push([[""], [""], [""], [""]]);
+          return (i) =>
+            i === 0
+              ? [["1"], ["2"], ["3"], ["4"]]
+              : bars[(i - 1) % bars.length].map((x) => x.slice());
+        }
+
+        const VV = "аеёиоуыэюя",
+          SON = "рлмнй";
+        function sylWord(w) {
+          const l = w.toLowerCase(),
+            idx = [];
+          for (let i = 0; i < l.length; i++) if (VV.includes(l[i])) idx.push(i);
+          if (idx.length < 2) return [w];
+          const out = [];
+          let st = 0;
+          for (let k = 0; k < idx.length - 1; k++) {
+            const a = idx[k],
+              b = idx[k + 1];
+            let cut = a + 1;
+            if (b - a - 1 >= 2 && SON.includes(l[a + 1])) cut = a + 2;
+            while (cut < b && "ьъ".includes(l[cut])) cut++;
+            out.push(w.slice(st, cut));
+            st = cut;
+          }
+          out.push(w.slice(st));
+          return out;
+        }
+        function sylLine(line) {
+          const words = line
+              .replace(/[^\p{L}\s-]/gu, " ")
+              .split(/[\s-]+/)
+              .filter(Boolean),
+            res = [];
+          let carry = "";
+          for (const w of words) {
+            if (![...w.toLowerCase()].some((c) => VV.includes(c))) {
+              carry += w;
+              continue;
+            }
+            const s = sylWord(w);
+            if (carry) {
+              s[0] = carry + s[0];
+              carry = "";
+            }
+            res.push(...s);
+          }
+          if (carry) {
+            if (res.length) res[res.length - 1] += carry;
+            else res.push(carry);
+          }
+          return res;
+        }
+        function autoBeats(text, n, nb) {
+          const beats = [];
+          for (const line of text.split("\n")) {
+            const s = sylLine(line);
+            if (!s.length) continue;
+            for (let i = 0; i < s.length; i += n) {
+              const b = s.slice(i, i + n);
+              while (b.length < n) b.push("");
+              beats.push(b);
+            }
+            if (nb) while (beats.length % 4) beats.push([""]);
+          }
+          return beats;
+        }
+        function manualBeats(text, nb) {
+          const beats = [];
+          for (const line of text.split("\n")) {
+            if (!line.trim()) continue;
+            for (const part of line.split("|")) {
+              const s = part
+                .trim()
+                .split(/[\s-]+/)
+                .filter(Boolean)
+                .map((x) => (x === "_" ? "" : x));
+              beats.push(s.length ? s : [""]);
+            }
+            if (nb) while (beats.length % 4) beats.push([""]);
+          }
+          return beats;
+        }
+
+        const BL = ["РАЗ", "два", "три", "четыре"];
+        function padsHTML(bar) {
+          return (
+            '<div class="grid">' +
+            bar
+              .map(
+                (syl, bi) =>
+                  '<div class="pad"><div class="pl">' +
+                  BL[bi] +
+                  '</div><div class="cells">' +
+                  syl
+                    .map(
+                      (x, si) =>
+                        `<div class="cell${si === 0 ? " f" : ""}${x === "" ? " rest" : ""}" data-b="${bi}" data-s="${si}">${x === "" ? "·" : esc(x)}</div>`,
+                    )
+                    .join("") +
+                  "</div></div>",
+              )
+              .join("") +
+            "</div>"
+          );
+        }
+
+        function makePlayer(el, o) {
+          el.innerHTML = `<div class="cur"></div><div class="next"></div>
+ <div style="margin-top:14px">
+  <div class="row"><button class="minus" aria-label="Медленнее">−</button><input type="range" class="bpm" min="40" max="180" step="1" aria-label="Темп"><button class="plus" aria-label="Быстрее">+</button><b class="bv" style="min-width:78px;text-align:right;white-space:nowrap"></b></div>
+  <div class="row" style="margin-top:6px;justify-content:space-between"><label class="row small mute" style="gap:8px"><input type="checkbox" class="sub"> Тихо щёлкать каждый слог</label>${o.tap ? '<button class="tap" aria-label="Отстучать темп">TAP</button>' : ""}</div>
+  ${o.ownStart === false ? "" : '<button class="pri play" style="width:100%;margin-top:10px">Старт</button>'}
+ </div>`;
+          const q = (s) => el.querySelector(s),
+            r = q(".bpm");
+          let bpm = o.bpm || 80,
+            shown = -1,
+            taps = [];
+          const setB = (v) => {
+            bpm = Math.max(40, Math.min(180, Math.round(v)));
+            r.value = bpm;
+            q(".bv").textContent = bpm + " BPM";
+            if (P.playing) E.bpm = bpm;
+            o.onBpm && o.onBpm(bpm);
+          };
+          const P = {
+            playing: false,
+            start() {
+              E.bpm = bpm;
+              E.sub = q(".sub").checked;
+              shown = -1;
+              eStart(o.getBar(), onEv, () => {
+                P.playing = false;
+                const b = q(".play");
+                if (b) b.textContent = "Старт";
+                P.preview();
+              });
+              P.playing = true;
+              const b = q(".play");
+              if (b) b.textContent = "Стоп";
+            },
+            stop() {
+              if (P.playing) eStop();
+            },
+            toggle() {
+              P.playing ? P.stop() : P.start();
+            },
+            preview() {
+              const g = o.getBar();
+              q(".cur").innerHTML = padsHTML(g(0));
+              q(".next").innerHTML = padsHTML(g(1));
+            },
+            refresh() {
+              if (P.playing) {
+                P.stop();
+                P.start();
+              } else P.preview();
+            },
+          };
+          const onEv = (e) => {
+            if (e.bar !== shown) {
+              shown = e.bar;
+              q(".cur").innerHTML = padsHTML(barAt(e.bar));
+              q(".next").innerHTML = padsHTML(barAt(e.bar + 1));
+            }
+            const c = q(".cur .on");
+            if (c) c.classList.remove("on");
+            const n = q(`.cur [data-b="${e.beat}"][data-s="${e.s}"]`);
+            if (n) n.classList.add("on");
+          };
+          q(".sub").checked = !!o.sub;
+          setB(bpm);
+          r.oninput = () => setB(+r.value);
+          q(".minus").onclick = () => setB(bpm - 1);
+          q(".plus").onclick = () => setB(bpm + 1);
+          q(".sub").onchange = () => {
+            if (P.playing) E.sub = q(".sub").checked;
+          };
+          const tb = q(".tap");
+          if (tb)
+            tb.onclick = () => {
+              const t = performance.now();
+              taps = taps.filter((x) => t - x < 3000);
+              taps.push(t);
+              if (taps.length >= 3)
+                setB(
+                  60000 /
+                    ((taps[taps.length - 1] - taps[0]) / (taps.length - 1)),
+                );
+            };
+          const pb = q(".play");
+          if (pb) pb.onclick = () => P.toggle();
+          P.preview();
+          return P;
+        }
+
+        function chips(el, items, cur, onPick) {
+          el.innerHTML = items
+            .map(
+              ([v, l]) =>
+                `<button class="chip" data-v="${v}" aria-pressed="${String(v) === String(cur)}">${l}</button>`,
+            )
+            .join("");
+          el.onclick = (e) => {
+            const b = e.target.closest("button");
+            if (!b) return;
+            el.querySelectorAll("button").forEach((x) =>
+              x.setAttribute("aria-pressed", x === b),
+            );
+            onPick(b.dataset.v);
+          };
+        }
+
+        /* ---------- текст ---------- */
+        const PRESETS = [
+          {
+            name: "Карл у Клары (разметка)",
+            mode: "manual",
+            n: 2,
+            text: "КАРЛ у | КЛА-ры у- | КРАЛ ко- | РАЛ-лы",
+          },
+          {
+            name: "Шла Саша (авто, 2 слога на долю)",
+            mode: "auto",
+            n: 2,
+            text: "Шла Саша по шоссе и сосала сушку",
+          },
+          {
+            name: "Пример куплета (авто, 4 слога на долю)",
+            mode: "auto",
+            n: 4,
+            text: "Я читаю ровно в бит, каждый слог на месте\nВоздух взял, держу ритм, дальше будет интересней",
+          },
+        ];
+        const T = Object.assign(
+          { mode: "manual", n: 2, nb: true, text: PRESETS[0].text, bpm: 75 },
+          store.get("text", {}),
+        );
+        const saveT = () => store.set("text", T);
+        const curBeats = () =>
+          T.mode === "auto"
+            ? autoBeats(T.text, T.n, T.nb)
+            : manualBeats(T.text, T.nb);
+        const ownText = () =>
+          T.text.trim() && !PRESETS.some((p) => p.text === T.text);
+        const HELP = {
+          manual:
+            "Ставь | между долями. Первый слог после | падает на щелчок — ударный пиши заглавными. Слоги внутри доли — через пробел или дефис. _ — пауза.",
+          auto: "Вставь текст: приложение само делит его на слоги и кладёт по N на каждый щелчок. Деление примерное — если флоу не тот, переключись на разметку.",
+        };
+        function renderPrev() {
+          const beats = curBeats(),
+            bars = [];
+          for (let i = 0; i < beats.length; i += 4)
+            bars.push(beats.slice(i, i + 4));
+          let h = "";
+          if (T.mode === "manual" && T.text.trim() && !T.text.includes("|"))
+            h +=
+              '<p class="err" style="margin:0 0 6px">Не вижу «|» — сейчас каждая строка идёт одной долей.</p>';
+          h += bars.length
+            ? '<p class="small mute" style="margin:0 0 6px">Раскладка: ' +
+              bars.length +
+              " " +
+              plural(bars.length, "такт", "такта", "тактов") +
+              " · блок = одна доля · перед текстом отсчёт 1-2-3-4</p>" +
+              bars
+                .map(
+                  (b) =>
+                    "<div>" +
+                    b
+                      .map(
+                        (x) =>
+                          "<span>" +
+                          (x.every((y) => y === "")
+                            ? "—"
+                            : esc(x.map((y) => y || "·").join(" "))) +
+                          "</span>",
+                      )
+                      .join("") +
+                    "</div>",
+                )
+                .join("")
+            : '<p class="small mute" style="margin:0">Впиши текст — здесь появится раскладка по долям.</p>';
+          $("#tPrev").innerHTML = h;
+        }
+        let tp;
+        function tUI() {
+          chips(
+            $("#tModes"),
+            [
+              ["manual", "Разметка"],
+              ["auto", "Авто"],
+            ],
+            T.mode,
+            (v) => {
+              T.mode = v;
+              saveT();
+              tUI();
+              tp.refresh();
+            },
+          );
+          $("#tHelp").textContent = HELP[T.mode];
+          $("#tNrow").style.display = T.mode === "auto" ? "flex" : "none";
+          chips(
+            $("#tN"),
+            [
+              [1, "1"],
+              [2, "2"],
+              [3, "3"],
+              [4, "4"],
+            ],
+            T.n,
+            (v) => {
+              T.n = +v;
+              saveT();
+              renderPrev();
+              tp.refresh();
+            },
+          );
+          $("#tNb").checked = T.nb;
+          renderPrev();
+        }
+        $("#tIn").value = T.text;
+        $("#tIn").oninput = () => {
+          T.text = $("#tIn").value;
+          saveT();
+          renderPrev();
+          if (!tp.playing) tp.preview();
+        };
+        $("#tNb").onchange = () => {
+          T.nb = $("#tNb").checked;
+          saveT();
+          renderPrev();
+          tp.refresh();
+        };
+        $("#tPre").innerHTML =
+          '<option value="">—</option>' +
+          PRESETS.map(
+            (p, i) => `<option value="${i}">${esc(p.name)}</option>`,
+          ).join("");
+        $("#tPre").onchange = () => {
+          const p = PRESETS[+$("#tPre").value];
+          if (!p) return;
+          if (ownText()) {
+            try {
+              store.set("backup", T.text);
+            } catch (e) {}
+          }
+          Object.assign(T, { mode: p.mode, n: p.n, text: p.text });
+          $("#tIn").value = p.text;
+          saveT();
+          tUI();
+          tp.refresh();
+          $("#tPre").value = "";
+        };
+        tp = makePlayer($("#tPlayer"), {
+          bpm: T.bpm,
+          tap: true,
+          getBar: () => textBar(curBeats()),
+          onBpm: (v) => {
+            T.bpm = v;
+            saveT();
+          },
+        });
+        tUI();
+
+        /* ---------- метроном ---------- */
+        let mMode = store.get("mMode", 1),
+          mSet = store.get("mSet", "taka");
+        const mp = makePlayer($("#mDisp"), {
+          bpm: store.get("mBpm", 80),
+          tap: true,
+          sub: true,
+          getBar: () => drillBar(mMode, mSet),
+          onBpm: (v) => store.set("mBpm", v),
+        });
+        chips(
+          $("#mModes"),
+          [
+            [1, "1"],
+            [2, "2"],
+            [3, "3"],
+            [4, "4"],
+            ["auto", "Авто 1→2→4→3"],
+          ],
+          mMode,
+          (v) => {
+            mMode = v === "auto" ? "auto" : +v;
+            store.set("mMode", mMode);
+            mp.refresh();
+          },
+        );
+        chips(
+          $("#mSets"),
+          [
+            ["taka", "та-ка-ти-ки"],
+            ["pbdg", "па-ба-да-га"],
+            ["rand", "Случайные слоги"],
+          ],
+          mSet,
+          (v) => {
+            mSet = v;
+            store.set("mSet", v);
+            mp.refresh();
+          },
+        );
+
+        /* ---------- тренировка ---------- */
+        const TW = [
+          "Карл у Клары украл кораллы, а Клара у Карла украла кларнет",
+          "Шла Саша по шоссе и сосала сушку",
+          "Бык тупогуб, тупогубенький бычок, у быка бела губа была тупа",
+          "На дворе трава, на траве дрова",
+        ];
+        const STEPS = [
+          {
+            blk: "Разминка",
+            t: "Зевок с открытым горлом",
+            d: 30,
+            b: "Широко зевни и на выдохе мягко скажи «а-а-а» сверху вниз. 3–4 раза. Снимает зажим в горле.",
+          },
+          {
+            blk: "Разминка",
+            t: "«Тр-р-р» губами",
+            d: 30,
+            b: "Как ребёнок изображает машинку. Сначала на одной ноте, потом плавно вверх-вниз.",
+          },
+          {
+            blk: "Разминка",
+            t: "Язык по кругу",
+            d: 30,
+            b: "Кончиком языка — по кругу между губами и зубами: 10 раз в одну сторону, 10 в другую.",
+          },
+          {
+            blk: "Разминка",
+            t: "Цоканье",
+            d: 15,
+            b: "Быстро цокай языком, как цокот копыт.",
+          },
+          {
+            blk: "Дыхание",
+            t: "Выдох на «с-с-с»",
+            d: 90,
+            k: "breath",
+            b: "Рука на животе. Вдох носом на 4 счёта — живот вперёд. Пауза на 2. Потом ровный выдох на «с-с-с». Жми кнопку в начале и в конце выдоха. 3 раза. Цель: сначала 20 секунд, потом 30–40.",
+          },
+          {
+            blk: "Дыхание",
+            t: "Толчки «Ф!»",
+            d: 30,
+            b: "Короткие резкие выдохи от пресса, как будто задуваешь свечи по одной. Это опора для акцентов.",
+          },
+          {
+            blk: "Дыхание",
+            t: "Счёт на одном выдохе",
+            d: 45,
+            k: "count",
+            b: "Вдох — и вслух, чётко и ровно: «раз, два, три…». Не ускоряйся и не комкай конец. Запиши, до скольки дошёл.",
+          },
+          {
+            blk: "Дикция",
+            t: "Цепочки согласных",
+            d: 60,
+            b: "Сначала медленно, потом быстрее — но каждый звук чётко.",
+            list: [
+              "пта — птэ — пты — пто — пту",
+              "бда — бдэ — бды — бдо — бду",
+              "тка — ткэ — ткы — тко — тку",
+              "птк-птк-птк · бдг-бдг-бдг",
+            ],
+          },
+          {
+            blk: "Дикция",
+            t: "Скороговорки с карандашом",
+            d: 120,
+            b: "Карандаш поперёк в зубах. Каждую — 3 раза, максимально чётко.",
+            list: TW,
+          },
+          {
+            blk: "Дикция",
+            t: "Те же — без карандаша",
+            d: 60,
+            b: "Почувствуй, насколько стало легче. Запомни это ощущение.",
+            list: TW,
+          },
+          {
+            blk: "Дикция",
+            t: "Концы слов",
+            d: 60,
+            k: "ends",
+            b: "Строку из своего текста читай, утрированно выговаривая последнюю согласную каждого слова: «вижуТ», «слиВ», «хотеЛ».",
+          },
+          {
+            blk: "Ритм",
+            t: "Слоги на долю",
+            d: 180,
+            k: "drill",
+            b: "Отбивай щелчки ногой. Говори слоги в такт подсветке, первый — всегда на щелчке. Режим меняется каждые 2 такта: 1 → 2 → 4 → 3. Сбился — лови следующий такт.",
+          },
+          {
+            blk: "Ритм",
+            t: "Скороговорка в бит",
+            d: 60,
+            k: "karl",
+            b: "Ударные слоги — на щелчки, остальное между ними. Сначала отсчёт «1 2 3 4», потом текст по кругу.",
+          },
+          {
+            blk: "Ритм",
+            t: "Шедоуинг",
+            d: 60,
+            b: "Включи трек с куплетом и читай одновременно с рэпером, как караоке: его паузы, акценты, вдохи. Не успеваешь — скорость 0.75 на YouTube.",
+          },
+          {
+            blk: "Ритм",
+            t: "Трудная строка",
+            d: 120,
+            k: "mytext",
+            b: "Твой текст из вкладки «Текст» — медленно, под метроном. Ударные слоги ставь на щелчки.",
+          },
+          {
+            blk: "Ритм",
+            t: "Куплет на минусе",
+            d: 60,
+            b: "Включи минус — тот же трек без голоса — и прочитай куплет сам. Сбился — не останавливайся, догоняй бит со следующей строки.",
+          },
+          {
+            blk: "Запись",
+            t: "Запись на диктофон",
+            d: 60,
+            b: "Запиши куплет на телефон. Каждый день не переслушивай — раз в неделю сравни с записью прошлой недели.",
+          },
+        ];
+        let si = 0,
+          left = 0,
+          run = false,
+          tick = 0,
+          sp = null,
+          sInit = false;
+        function sStopTimer() {
+          clearInterval(tick);
+          run = false;
+          if (sp) sp.stop();
+        }
+        function sShow() {
+          sStopTimer();
+          sp = null;
+          if (si >= STEPS.length) return sDone();
+          const st = STEPS[si],
+            bpm = WEEKS[week].bpm;
+          left = st.d;
+          $("#sBlock").textContent = st.blk;
+          $("#sCount").textContent = si + 1 + " из " + STEPS.length;
+          $("#sProg").style.width = (si / STEPS.length) * 100 + "%";
+          $("#sTitle").textContent = st.t;
+          $("#sTime").textContent = fmt(left);
+          $("#sBody").innerHTML =
+            "<p>" +
+            esc(st.b) +
+            "</p>" +
+            (st.list
+              ? '<ul class="tw">' +
+                st.list.map((x) => "<li>" + esc(x) + "</li>").join("") +
+                "</ul>"
+              : "");
+          const ex = $("#sExtra");
+          ex.innerHTML = "";
+          if (st.k === "drill")
+            sp = makePlayer(ex, {
+              bpm,
+              sub: week < 2,
+              ownStart: false,
+              getBar: () => drillBar("auto", "taka"),
+            });
+          if (st.k === "karl")
+            sp = makePlayer(ex, {
+              bpm,
+              ownStart: false,
+              getBar: () => textBar(manualBeats(PRESETS[0].text, true)),
+            });
+          if (st.k === "mytext") {
+            const own = ownText();
+            const box = document.createElement("div");
+            ex.appendChild(box);
+            if (!own)
+              ex.insertAdjacentHTML(
+                "afterbegin",
+                '<p class="small mute">Свой куплет ещё не добавлен — пока тренируем пример. Добавь текст во вкладке «Текст».</p>',
+              );
+            sp = makePlayer(box, {
+              bpm: own ? Math.min(T.bpm, bpm) : bpm - 5,
+              ownStart: false,
+              getBar: () =>
+                textBar(own ? curBeats() : autoBeats(PRESETS[1].text, 2, true)),
+            });
+          }
+          if (st.k === "ends" && ownText()) {
+            const first = (T.text.split("\n").find((l) => l.trim()) || "")
+              .replace(/\|/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            ex.innerHTML =
+              '<div class="card"><p class="small mute" style="margin:0 0 4px">Твоя строка</p><p style="margin:0;font-size:18px">' +
+              esc(first) +
+              "</p></div>";
+          }
+          if (st.k === "breath") breathUI(ex);
+          if (st.k === "count") countUI(ex);
+          $("#sPlay").textContent = "Старт";
+          $("#sPrev").disabled = si === 0;
+          $("#sNext").disabled = false;
+        }
+        function sDone() {
+          $("#sProg").style.width = "100%";
+          $("#sBlock").textContent = "Готово";
+          $("#sCount").textContent = "";
+          $("#sTitle").textContent = "Тренировка закончена";
+          const days = store.get("days", []),
+            k = dkey(new Date());
+          if (!days.includes(k)) {
+            days.push(k);
+            store.set("days", days);
+          }
+          store.set("total", store.get("total", 0) + 1);
+          $("#sTime").textContent =
+            streak() + " " + plural(streak(), "день", "дня", "дней");
+          $("#sBody").innerHTML =
+            "<p>Столько дней подряд ты тренируешься. Завтра — снова 15–20 минут.</p>";
+          $("#sExtra").innerHTML = "";
+          $("#sPlay").textContent = "Пройти ещё раз";
+          $("#sPrev").disabled = false;
+          $("#sNext").disabled = true;
+        }
+        function sToggle() {
+          if (si >= STEPS.length) {
+            si = 0;
+            return sShow();
+          }
+          if (left <= 0) {
+            si++;
+            return sShow();
+          }
+          if (!run) {
+            run = true;
+            ac();
+            if (sp) sp.start();
+            $("#sPlay").textContent = "Пауза";
+            tick = setInterval(() => {
+              left--;
+              $("#sTime").textContent = fmt(Math.max(0, left));
+              if (left <= 0) {
+                sStopTimer();
+                chime();
+                $("#sTime").textContent = "Готово";
+                $("#sPlay").textContent = "Дальше";
+              }
+            }, 1000);
+          } else {
+            sStopTimer();
+            $("#sPlay").textContent = "Продолжить";
+          }
+        }
+        $("#sPlay").onclick = sToggle;
+        $("#sNext").onclick = () => {
+          si++;
+          sShow();
+        };
+        $("#sPrev").onclick = () => {
+          if (si >= STEPS.length) si = STEPS.length - 1;
+          else si = Math.max(0, si - 1);
+          sShow();
+        };
+        function breathUI(ex) {
+          ex.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><span>Выдох: <b id="brT">0.0</b> с</span><span class="small mute">Рекорд: <b id="brBest">${store.get("breath", 0) || "—"}</b> с</span></div><button id="brBtn" style="width:100%;margin-top:10px">Начал выдох</button><p class="small mute" id="brLog" style="margin:8px 0 0"></p></div>`;
+          let st = 0,
+            raf = 0;
+          const log = [],
+            btn = $("#brBtn");
+          btn.onclick = () => {
+            if (!st) {
+              st = performance.now();
+              btn.textContent = "Закончил";
+              const f = () => {
+                $("#brT").textContent = (
+                  (performance.now() - st) /
+                  1000
+                ).toFixed(1);
+                raf = requestAnimationFrame(f);
+              };
+              f();
+            } else {
+              cancelAnimationFrame(raf);
+              const s = +((performance.now() - st) / 1000).toFixed(1);
+              st = 0;
+              btn.textContent = "Начал выдох";
+              $("#brT").textContent = s.toFixed(1);
+              log.push(s.toFixed(1));
+              $("#brLog").textContent = "Попытки: " + log.join(" · ") + " с";
+              if (s > store.get("breath", 0)) {
+                store.set("breath", s);
+                $("#brBest").textContent = s.toFixed(1);
+              }
+            }
+          };
+        }
+        function countUI(ex) {
+          ex.innerHTML = `<div class="card"><div class="row"><label for="cnt">Досчитал до</label><input type="number" id="cnt" min="1" max="300" inputmode="numeric"><button id="cntSave">Записать</button></div><p class="err" id="cntErr" style="margin:6px 0 0"></p><p class="small mute" id="cntInfo" style="margin:6px 0 0">Рекорд: ${store.get("count", 0) || "—"}</p></div>`;
+          $("#cnt").oninput = () => ($("#cntErr").textContent = "");
+          $("#cntSave").onclick = () => {
+            const v = Math.round(+$("#cnt").value);
+            if (!v || v < 1 || v > 300) {
+              $("#cntErr").textContent = "Впиши число от 1 до 300";
+              return;
+            }
+            const best = Math.max(v, store.get("count", 0));
+            store.set("count", best);
+            $("#cntInfo").textContent = "Записано: " + v + " · рекорд: " + best;
+          };
+        }
+
+        /* ---------- главная ---------- */
+        function streak() {
+          const days = new Set(store.get("days", []));
+          let n = 0;
+          const d = new Date();
+          if (!days.has(dkey(d))) d.setDate(d.getDate() - 1);
+          while (days.has(dkey(d))) {
+            n++;
+            d.setDate(d.getDate() - 1);
+          }
+          return n;
+        }
+        function weekTip() {
+          $("#weekTip").textContent =
+            WEEKS[week].tip + " Темп: " + WEEKS[week].bpm + " BPM.";
+        }
+        chips(
+          $("#weeks"),
+          [
+            [0, "1-я"],
+            [1, "2-я"],
+            [2, "3-я"],
+            [3, "4-я"],
+          ],
+          week,
+          (v) => {
+            week = +v;
+            store.set("week", week);
+            weekTip();
+            if (sInit && si < STEPS.length) sShow();
+          },
+        );
+        weekTip();
+        function renderHome() {
+          const s = streak(),
+            tot = store.get("total", 0),
+            br = store.get("breath", 0);
+          $("#stats").innerHTML = [
+            [s, plural(s, "день подряд", "дня подряд", "дней подряд")],
+            [tot, plural(tot, "тренировка", "тренировки", "тренировок")],
+            [br ? br + " с" : "—", "рекорд выдоха"],
+          ]
+            .map(
+              ([a, b]) =>
+                `<div class="stat"><b>${esc(a)}</b><span class="small mute">${esc(b)}</span></div>`,
+            )
+            .join("");
+          demoRun();
+        }
+        $("#goSession").onclick = () => {
+          location.hash = "session";
+        };
+        let dT = 0;
+        const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const mk = (n) => [0, 1, 2, 3].map(() => SYL[n].slice());
+        function demoRun() {
+          clearTimeout(dT);
+          const el = $("#demo");
+          if (reduced) {
+            el.innerHTML = padsHTML(mk(4));
+            return;
+          }
+          let bar = 0,
+            b = 0,
+            s = 0;
+          const go = () => {
+            if (!$("#v-home").classList.contains("on")) return;
+            const n = [1, 2, 4, 3][Math.floor(bar / 2) % 4];
+            if (b === 0 && s === 0) el.innerHTML = padsHTML(mk(n));
+            const c = el.querySelector(".on");
+            if (c) c.classList.remove("on");
+            const x = el.querySelector(`[data-b="${b}"][data-s="${s}"]`);
+            if (x) x.classList.add("on");
+            if (++s >= n) {
+              s = 0;
+              if (++b >= 4) {
+                b = 0;
+                bar++;
+              }
+            }
+            dT = setTimeout(go, 750 / n);
+          };
+          go();
+        }
+
+        /* ---------- навигация ---------- */
+        const VIEWS = ["home", "session", "metronome", "text"];
+        function route() {
+          const h = location.hash.slice(1),
+            v = VIEWS.includes(h) ? h : "home";
+          eStop();
+          if (run) {
+            sStopTimer();
+            $("#sPlay").textContent = "Продолжить";
+          }
+          document
+            .querySelectorAll(".view")
+            .forEach((x) => x.classList.toggle("on", x.id === "v-" + v));
+          document
+            .querySelectorAll("nav.tabs a")
+            .forEach((a) => a.classList.toggle("on", a.dataset.v === v));
+          if (v === "home") renderHome();
+          if (v === "session" && !sInit) {
+            sInit = true;
+            sShow();
+          }
+          window.scrollTo(0, 0);
+        }
+        addEventListener("hashchange", route);
+        route();
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible" && E.on) {
+            try {
+              navigator.wakeLock &&
+                navigator.wakeLock
+                  .request("screen")
+                  .then((w) => (E.wl = w))
+                  .catch(() => {});
+            } catch (e) {}
+          }
+        });
+        try {
+          if ("serviceWorker" in navigator && location.protocol === "https:")
+            navigator.serviceWorker.register("sw.js").catch(() => {});
+        } catch (e) {}
+      }
+    </script>
+  </body>
+</html>
