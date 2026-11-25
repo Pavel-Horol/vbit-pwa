@@ -1,21 +1,51 @@
 <script setup lang="ts">
-import type { Beat } from '@/core/types';
+import type { RenderMode } from '@/core/ladder';
+import type { Beat, Syllable } from '@/core/types';
 
-defineProps<{ beat: Beat; label?: string; activeSlot?: number | null }>();
+const props = withDefaults(
+  defineProps<{
+    beat: Beat;
+    label?: string;
+    activeSlot?: number | null;
+    mode?: RenderMode;
+    /** joins[i] — слог i продолжает слово слева / справа (ступени 3–4 склеивают слова). */
+    joins?: { l: boolean; r: boolean }[];
+  }>(),
+  { label: undefined, activeSlot: null, mode: 'syllables', joins: undefined },
+);
+
+/** REQ-VIS-3: начальные согласные (2+) рисуются бледнее и левее. */
+function parts(s: Syllable): [string, string] {
+  // ступень 1: слоги текста → «та»/«ТА»; отсчёт (wordId −1) остаётся цифрами
+  if (props.mode === 'skeleton' && s.wordId !== -1) return ['', s.stressed ? 'ТА' : 'та'];
+  const n = s.onset.length >= 2 ? s.onset.length : 0;
+  return [s.text.slice(0, n), s.text.slice(n)];
+}
 </script>
 
 <template>
   <div class="pad">
     <div v-if="label" class="pl">{{ label }}</div>
-    <div class="cells">
+    <div class="cells" :class="{ words: mode === 'words' }">
       <div
         v-for="(s, i) in beat.syllables"
         :key="i"
         class="cell"
-        :class="{ f: i === 0, rest: s.text === '', on: activeSlot === i }"
+        :class="{
+          f: i === 0,
+          rest: s.text === '',
+          on: activeSlot === i,
+          st: s.stressed,
+          jl: mode === 'words' && joins?.[i]?.l,
+          jr: mode === 'words' && joins?.[i]?.r,
+        }"
         :data-slot="i"
       >
-        {{ s.text === '' ? '·' : s.text }}
+        <template v-if="s.text === ''">·</template>
+        <template v-else
+          ><span v-if="parts(s)[0]" class="ons">{{ parts(s)[0] }}</span
+          ><span class="nuc">{{ parts(s)[1] }}</span></template
+        >
       </div>
     </div>
   </div>
@@ -59,14 +89,54 @@ defineProps<{ beat: Beat; label?: string; activeSlot?: number | null }>();
 }
 .cell.f {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
+}
+/* REQ-VIS-4: ударный слог — жирный, подчёркнут акцентным цветом */
+.cell.st {
+  color: var(--ink);
+  font-weight: 800;
+}
+.cell.st .nuc,
+.cell.st .ons {
+  text-decoration: underline 2px var(--acc);
+  text-underline-offset: 4px;
+}
+.ons {
+  opacity: 0.55;
+  margin-left: -0.35em;
 }
 .cell.rest {
   opacity: 0.35;
 }
-.cell.on {
+/* ступени 3–4: слоги одного слова — общий фон, скругление только по краям слова */
+.cells.words {
+  gap: 0;
+}
+.cells.words .cell:not(.rest) {
+  background: var(--line);
+  margin: 0 2px;
+}
+.cells.words .cell.jl {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 0;
+}
+.cells.words .cell.jr {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-right: 0;
+}
+.cell.on,
+.cells.words .cell.on {
   background: var(--acc);
   color: var(--accInk);
   opacity: 1;
+}
+.cell.on .ons {
+  opacity: 0.7;
+}
+.cell.on.st .nuc,
+.cell.on.st .ons {
+  text-decoration-color: var(--accInk);
 }
 </style>
