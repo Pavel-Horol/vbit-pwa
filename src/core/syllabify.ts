@@ -6,7 +6,7 @@ const SOFT_HARD = 'ьъ';
 
 const isVowel = (c: string) => VOWELS.includes(c.toLowerCase());
 
-export type RawSyllable = { text: string; wordId: number; onset: string };
+export type RawSyllable = { text: string; wordId: number; onset: string; glued?: number };
 
 /** Делит слово на слоги по REQ-SYL-2. Регистр сохраняется; `+` не влияет на границы. */
 export function syllabifyWord(word: string): string[] {
@@ -92,11 +92,14 @@ export function syllabifyLine(line: string): RawSyllable[] {
       continue;
     }
     const syls = syllabifyWord(w);
+    const glued = carry.length;
     if (carry) {
       syls[0] = carry + syls[0];
       carry = '';
     }
-    for (const text of syls) res.push({ text, wordId, onset: onsetOf(text) });
+    syls.forEach((text, i) =>
+      res.push({ text, wordId, onset: onsetOf(text), ...(i === 0 && glued ? { glued } : {}) }),
+    );
     wordId++;
   }
   if (carry) {

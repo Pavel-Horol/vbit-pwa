@@ -1,5 +1,4 @@
-// REQ-STR: ударения. Этап 1 — только разметка (+, капс), ё и user-overrides.
-// Словарь (REQ-STR-4) подключается на этапе 2.
+// REQ-STR: ударения. Приоритет источников: user → markup (+, капс) → ё → словарь → none.
 import type { RawSyllable } from './syllabify';
 import type { StressDict, Syllable } from './types';
 
@@ -27,13 +26,37 @@ function isCapsMarkup(text: string, firstOfLine: boolean): boolean {
   return !firstOfLine;
 }
 
+/** REQ-STR-5: служебные слова без ударения по умолчанию. */
+export const SERVICE_WORDS = new Set(
+  'и а но да в во на по к ко с со у о об от до за из не ни же ли бы то'.split(' '),
+);
+
+/**
+ * Шаг словаря (REQ-STR-4/5) для слова из `count` слогов. `key` — слово в нижнем регистре без
+ * приклеенных предлогов. Возвращает индекс ударного слога, 'ambiguous' или null (неизвестно).
+ */
+export function dictStress(
+  key: string,
+  count: number,
+  dict: StressDict,
+): number | 'ambiguous' | null {
+  if (SERVICE_WORDS.has(key)) return null;
+  if (count === 1) return 0;
+  const found = dict.lookup(key)?.filter((i) => i < count);
+  if (!found?.length) return null;
+  return found.length > 1 ? 'ambiguous' : found[0]!;
+}
+
 export type StressOptions = {
   overrides: Record<string, number>;
   dict?: StressDict;
   lineStart: boolean;
 };
 
-/** Приоритет: user → markup → yo → (dict, этап 2) → none. `+` из текста удаляется. */
+/**
+ * Приоритет: user → markup → yo → dict → none. `+` из текста удаляется. Без `dict`
+ * (ручная разметка, REQ-STR-6) шаг словаря пропускается. Override `-1` — «без ударения».
+ */
 export function applyStress(syls: Syllable[], opts: StressOptions): Syllable[] {
   const out = syls.map((s) => ({ ...s }));
   const firstReal = opts.lineStart ? out.findIndex((s) => s.wordId !== -1) : -1;
@@ -56,6 +79,11 @@ export function applyStress(syls: Syllable[], opts: StressOptions): Syllable[] {
     );
     const yo = idx.map((i) => /ё/i.test(out[i]!.text));
     const override = opts.overrides[key];
+    const glued = out[idx[0]!]!.glued ?? 0;
+    const fromDict =
+      opts.dict && !markup.some(Boolean) && !yo.some(Boolean)
+        ? dictStress(key.slice(glued), idx.length, opts.dict)
+        : null;
 
     idx.forEach((i, k) => {
       const s = out[i]!;
@@ -69,10 +97,15 @@ export function applyStress(syls: Syllable[], opts: StressOptions): Syllable[] {
       } else if (yo.some(Boolean)) {
         s.stressed = yo[k]!;
         s.stressSource = s.stressed ? 'yo' : 'none';
+      } else if (typeof fromDict === 'number') {
+        s.stressed = k === fromDict;
+        s.stressSource = s.stressed ? 'dict' : 'none';
       } else {
         s.stressed = false;
         s.stressSource = 'none';
       }
+      if (fromDict === 'ambiguous' && override === undefined) s.ambiguous = true;
+      else delete s.ambiguous;
     });
   }
   return out;

@@ -6,6 +6,10 @@ export type Syllable = {
   wordId: number; // слоги одного слова имеют одинаковый wordId; пауза = -1
   onset: string; // согласные до первой гласной, lowercase: 'кр' для 'крал', '' для 'у'
   stressSource: 'markup' | 'yo' | 'dict' | 'user' | 'none';
+  /** REQ-STR-4: у слова несколько вариантов ударения в словаре (омограф) — проверь вручную. */
+  ambiguous?: boolean;
+  /** REQ-SYL-4: сколько букв в начале слога приклеено от слова без гласных («вдом» → 1). */
+  glued?: number;
 };
 export type Beat = { syllables: Syllable[]; pickup?: boolean }; // слоги делят долю поровну
 export type Bar = [Beat, Beat, Beat, Beat]; // только 4/4

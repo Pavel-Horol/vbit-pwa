@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyStress, toSyllables } from '@/core/stress';
 import { syllabifyLine } from '@/core/syllabify';
+import type { StressDict } from '@/core/types';
 
 const run = (line: string, overrides: Record<string, number> = {}, lineStart = true) =>
   applyStress(toSyllables(syllabifyLine(line)), { overrides, lineStart }).map(
@@ -64,5 +65,93 @@ describe('pauses', () => {
     expect(syls).toEqual([
       { text: '', stressed: false, wordId: -1, onset: '', stressSource: 'none' },
     ]);
+  });
+});
+
+// --- REQ-STR-4..6: словарь, служебные слова, односложные слова ---
+
+const DICT: StressDict = {
+  lookup: (w) =>
+    ({ сосала: [1], сушку: [0], замок: [0, 1], доме: [0], мама: [0] })[w] as number[] | undefined,
+};
+const runDict = (line: string, overrides: Record<string, number> = {}) =>
+  applyStress(toSyllables(syllabifyLine(line)), { overrides, dict: DICT, lineStart: true }).map(
+    (s) => `${s.text}${s.stressed ? '*' : ''}:${s.stressSource}${s.ambiguous ? '?' : ''}`,
+  );
+
+describe('REQ-STR-4: dictionary', () => {
+  it('stress comes from the dictionary', () => {
+    expect(runDict('сосала сушку')).toEqual([
+      'со:none',
+      'са*:dict',
+      'ла:none',
+      'су*:dict',
+      'шку:none',
+    ]);
+  });
+  it('lookup is lowercase', () => {
+    expect(runDict('Сосала')).toEqual(['Со:none', 'са*:dict', 'ла:none']);
+  });
+  it('homograph → none + ambiguous on every syllable of the word', () => {
+    expect(runDict('замок')).toEqual(['за:none?', 'мок:none?']);
+  });
+  it('unknown word of 2+ syllables → none, not ambiguous', () => {
+    expect(runDict('кукуруза')).toEqual(['ку:none', 'ку:none', 'ру:none', 'за:none']);
+  });
+  it('prefix without vowel glued to the word: falls back to the word itself', () => {
+    expect(runDict('в доме')).toEqual(['вдо*:dict', 'ме:none']);
+  });
+  it('markup and ё beat the dictionary', () => {
+    expect(runDict('соСАла')).toEqual(['со:none', 'СА*:markup', 'ла:none']);
+    expect(runDict('сосёт')).toEqual(['со:none', 'сёт*:yo']);
+  });
+  it('user override beats the dictionary; -1 means «no stress»', () => {
+    expect(runDict('сосала', { сосала: 0 })).toEqual(['со*:user', 'са:user', 'ла:user']);
+    expect(runDict('шла', { шла: -1 })).toEqual(['шла:user']);
+  });
+  it('without a dictionary nothing changes (REQ-STR-6, manual)', () => {
+    expect(run('сосала шла')).toEqual(['со:none', 'са:none', 'ла:none', 'шла:none']);
+  });
+});
+
+describe('REQ-STR-5: service words, one-syllable words', () => {
+  it('service words stay unstressed', () => {
+    for (const w of [
+      'и',
+      'а',
+      'но',
+      'да',
+      'во',
+      'на',
+      'по',
+      'ко',
+      'со',
+      'у',
+      'о',
+      'об',
+      'от',
+      'до',
+      'за',
+      'из',
+      'не',
+      'ни',
+      'же',
+      'ли',
+      'бы',
+      'то',
+    ])
+      expect(runDict(`мама ${w}`)[2]).toBe(`${w}:none`);
+  });
+  it('one-syllable non-service word is stressed (source dict)', () => {
+    expect(runDict('Шла Саша по шоссе')[0]).toBe('Шла*:dict');
+  });
+  it('one-syllable word with a glued preposition: к нам → кнам stressed', () => {
+    expect(runDict('к нам')).toEqual(['кнам*:dict']);
+  });
+  it('service word with a glued preposition stays unstressed', () => {
+    expect(runDict('с не')).toEqual(['сне:none']);
+  });
+  it('кто-то: «то» is a service word', () => {
+    expect(runDict('кто-то')).toEqual(['кто*:dict', 'то:none']);
   });
 });
