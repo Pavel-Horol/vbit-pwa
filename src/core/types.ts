@@ -46,3 +46,28 @@ export type Progress = {
   countBest: number;
   recordings?: { date: string; blobKey: string; textId?: string }[];
 };
+
+// --- Дополнения, на которые ссылаются сигнатуры SPEC §3–§8 ---
+
+export type WarningCode = 'digits_removed' | 'no_beat_separators' | 'no_stress' | 'pickup_shifted';
+/** line — индекс непустой строки текста (с 0). */
+export type Warning = { code: WarningCode; line: number };
+
+/** Словарь ударений (REQ-STR-4, этап 2): lowercase-слово → индексы ударного слога. */
+export type StressDict = { lookup(word: string): number[] | undefined };
+
+export type TickKind = 'downbeat' | 'beat' | 'stressed' | 'unstressed' | 'rest';
+/** Громкость для каждого вида тика (REQ-TL-3). */
+export type Mix = Record<Exclude<TickKind, 'rest'>, number>;
+export type TimelineEvent = {
+  time: number;
+  bar: number;
+  beat: number;
+  slot: number;
+  slots: number;
+  kind: TickKind;
+  gain: number;
+};
+
+export type DrillMode = 1 | 2 | 3 | 4 | 'auto';
+export type DrillSet = 'taka' | 'pbdg' | 'rand';
