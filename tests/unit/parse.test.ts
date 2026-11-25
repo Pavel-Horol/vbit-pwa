@@ -103,9 +103,52 @@ describe('REQ-PAR-4 and warnings', () => {
     expect(show(lines[0]!.beats)).toEqual([['та'], ['ка']]);
     expect(warnings).toEqual([{ code: 'digits_removed', line: 0 }]);
   });
-  it('stage 1: leading > is ignored (pickup comes in stage 2)', () => {
-    const { lines } = parseManual('> на дво- | РЕ', { lineStartsBar: false });
-    expect(show(lines[0]!.beats)).toEqual([['на', 'дво'], ['РЕ*']]);
+});
+
+describe('REQ-PAR-3: pickup «>»', () => {
+  const V = '> на дво- | РЕ тра- | ВА на тра- | ВЕ дро- | ВА';
+  it('first segment becomes a pickup beat', () => {
+    const { lines, warnings } = parseManual(V, { lineStartsBar: true });
+    expect(warnings).toEqual([]);
+    const line = lines[0]!;
+    expect(line.pickupCount).toBe(2);
+    expect(line.beats[0]!.pickup).toBe(true);
+    expect(line.beats.slice(1).every((b) => !b.pickup)).toBe(true);
+    expect(show(line.beats)).toEqual([
+      ['на', 'дво'],
+      ['РЕ*', 'тра'],
+      ['ВА*', 'на', 'тра'],
+      ['ВЕ*', 'дро'],
+      ['ВА*'],
+    ]);
+  });
+  it('words continue from the pickup into the first beat', () => {
+    const { lines } = parseManual(V, { lineStartsBar: true });
+    // на | дво-РЕ | тра-ВА | на | тра-ВЕ | дро-ВА
+    expect(lines[0]!.syllables.map((s) => s.wordId)).toEqual([0, 1, 1, 2, 2, 3, 4, 4, 5, 5]);
+  });
+  it('pickupCount counts sounding syllables only', () => {
+    const { lines } = parseManual('> _ на | РЕ', { lineStartsBar: true });
+    expect(show(lines[0]!.beats)).toEqual([['_', 'на'], ['РЕ*']]);
+    expect(lines[0]!.pickupCount).toBe(1);
+  });
+  it('the first sounding syllable after > counts as the line start for caps (REQ-STR-2)', () => {
+    const { lines } = parseManual('> Я | БЕГ', { lineStartsBar: true });
+    expect(show(lines[0]!.beats)).toEqual([['Я'], ['БЕГ*']]);
+  });
+  it('empty pickup segment → no pickup', () => {
+    const { lines } = parseManual('> | та | ка', { lineStartsBar: true });
+    expect(lines[0]!.pickupCount).toBe(0);
+    expect(show(lines[0]!.beats)).toEqual([['та'], ['ка']]);
+  });
+  it('> without | → no pickup, the line is one beat', () => {
+    const { lines, warnings } = parseManual('> на дво', { lineStartsBar: true });
+    expect(lines[0]!.pickupCount).toBe(0);
+    expect(lines[0]!.beats[0]!.pickup).toBeUndefined();
+    expect(warnings).toEqual([{ code: 'no_beat_separators', line: 0 }]);
+  });
+  it('> only matters at the line start', () => {
+    const { lines } = parseManual('та | > ка', { lineStartsBar: true });
     expect(lines[0]!.pickupCount).toBe(0);
   });
 });

@@ -17,11 +17,17 @@ export function parseManual(
   let wordId = -1;
 
   nonEmptyLines(raw).forEach((rawLine, lineNo) => {
-    // Этап 1: затакт `>` (REQ-PAR-3) ещё не поддержан — знак просто убираем.
+    // REQ-PAR-3: `>` в начале строки — первый сегмент (до первой `|`) это затакт.
+    const marked = /^\s*>/.test(rawLine);
     const line = stripAccents(rawLine.replace(/^\s*>/, ''));
     if (hasDigits(line)) warnings.push({ code: 'digits_removed', line: lineNo });
 
-    const parts = line.split('|');
+    let parts = line.split('|');
+    let hasPickup = marked && parts.length > 1;
+    if (hasPickup && !/[\p{L}_]/u.test(parts[0]!)) {
+      parts = parts.slice(1); // `> | …` — пустой затакт
+      hasPickup = false;
+    }
     const beatOf: number[] = [];
     const flat: Syllable[] = [];
     let continueWord = false;
@@ -58,15 +64,54 @@ export function parseManual(
     });
 
     const stressed = applyStress(flat, { overrides: opts.overrides ?? {}, lineStart: true });
-    const beats: Beat[] = parts.map(() => ({ syllables: [] }));
+    const beats: Beat[] = parts.map((_, i) =>
+      i === 0 && hasPickup ? { syllables: [], pickup: true } : { syllables: [] },
+    );
     stressed.forEach((s, i) => beats[beatOf[i]!]!.syllables.push(s));
 
     const syllables = stressed.filter((s) => s.wordId !== -1);
     if (parts.length === 1 && syllables.length > 0) {
       warnings.push({ code: 'no_beat_separators', line: lineNo });
     }
-    lines.push({ syllables, pickupCount: 0, beats });
+    const pickupCount = hasPickup ? beats[0]!.syllables.filter((s) => s.wordId !== -1).length : 0;
+    lines.push({ syllables, pickupCount, beats });
   });
 
   return { lines, warnings };
+}
+
+/**
+ * REQ-LAY-5: любая раскладка → текст ручной разметки. Ударный слог — капсом (однобуквенный — через
+ * `+`, иначе в начале строки он не считается ударным), безударные — строчными, `_` — пауза,
+ * `>` — затакт. В безударном слове «ё» пишется как «е», иначе она сама дала бы ударение (REQ-STR-3).
+ */
+export function serializeManual(lines: Line[]): string {
+  const out: string[] = [];
+  for (const line of lines) {
+    if (!line.beats.length) continue;
+    const stressedWords = new Set(line.syllables.filter((s) => s.stressed).map((s) => s.wordId));
+    const fmt = (s: Syllable) => {
+      if (s.text === '') return '_';
+      if (s.stressed)
+        return s.text.length === 1 ? '+' + s.text.toLowerCase() : s.text.toUpperCase();
+      const lower = s.text.toLowerCase();
+      return stressedWords.has(s.wordId) ? lower : lower.replace(/ё/g, 'е');
+    };
+    const flat = line.beats.flatMap((b) => b.syllables);
+    let at = 0;
+    const segments = line.beats.map((beat) => {
+      let seg = '';
+      beat.syllables.forEach((s, i) => {
+        const next = flat[at + i + 1];
+        const sameWord = s.wordId !== -1 && next?.wordId === s.wordId;
+        seg += fmt(s);
+        if (i < beat.syllables.length - 1) seg += sameWord ? '-' : ' ';
+        else if (sameWord) seg += '-';
+      });
+      at += beat.syllables.length;
+      return seg;
+    });
+    out.push((line.beats[0]!.pickup ? '> ' : '') + segments.join(' | '));
+  }
+  return out.join('\n');
 }
