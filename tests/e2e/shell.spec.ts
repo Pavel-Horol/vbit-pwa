@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // §18: каждый экран открывается без ошибок в консоли; нигде нет горизонтальной прокрутки.
 const screens = [
   { hash: '#/', heading: 'В бит' },
-  { hash: '#/session', heading: 'Тренировка' },
+  { hash: '#/session', heading: 'Зевок с открытым горлом' },
   { hash: '#/metronome', heading: 'Метроном-слоги' },
   { hash: '#/texts', heading: 'Мой текст в бит' },
   { hash: '#/drill', heading: 'Разбор строки' },
@@ -42,14 +42,17 @@ test('bottom navigation switches screens and marks the active tab', async ({ pag
   await page.goto('./');
   const nav = page.getByRole('navigation', { name: 'Разделы' });
   for (const [label, heading] of [
-    ['Тренировка', 'Тренировка'],
+    ['Тренировка', 'Зевок с открытым горлом'],
     ['Метроном', 'Метроном-слоги'],
-    ['Тексты', 'Мой текст в бит'],
+    ['Текст', 'Мой текст в бит'],
     ['Главная', 'В бит'],
   ] as const) {
-    await nav.getByRole('link', { name: label }).click();
+    await nav.getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
-    await expect(nav.getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await expectNoHorizontalScroll(page);
   }
   expect(errors).toEqual([]);
@@ -76,6 +79,7 @@ test('fonts are served locally', async ({ page }) => {
     if (!r.url().startsWith('http://localhost')) external.push(r.url());
   });
   await page.goto('./');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family),
