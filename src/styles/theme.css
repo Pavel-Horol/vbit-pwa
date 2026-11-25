@@ -1,0 +1,147 @@
+/* REQ-VIS-5: тема из прототипа (prototype/index.html). */
+:root {
+  color-scheme: dark;
+  --bg: #17131c;
+  --pan: #221d29;
+  --pan2: #2c2535;
+  --line: #3a3245;
+  --ink: #f4efe8;
+  --mute: #aca3b8;
+  --acc: #ff5a3c;
+  --accInk: #1a0d09;
+  --err: #ff8a7a;
+  --font-head: Unbounded, Manrope, system-ui, sans-serif;
+  --font-body: Manrope, system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+  min-width: 0;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+body {
+  font:
+    16px/1.55 var(--font-body),
+    system-ui,
+    sans-serif;
+  overflow-x: clip;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+}
+h1 {
+  font-size: clamp(36px, 9vw, 52px);
+}
+h2 {
+  font-size: clamp(22px, 5vw, 28px);
+}
+h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+p {
+  margin: 0.6em 0;
+}
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px max(4vw, 16px);
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+a {
+  color: inherit;
+}
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--pan2);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+.pri {
+  background: var(--acc);
+  color: var(--accInk);
+  border-color: var(--acc);
+  font-weight: 700;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.card {
+  background: var(--pan);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+.mute {
+  color: var(--mute);
+}
+.small {
+  font-size: 14px;
+}
+.sp {
+  height: 16px;
+}
+.lamp {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--acc);
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+.back {
+  margin-bottom: 16px;
+}
