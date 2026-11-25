@@ -14,7 +14,13 @@ const VOICES: Record<Exclude<TickKind, 'rest'>, Voice> = {
 
 const FLOOR = 0.001;
 
-function tone(ctx: AudioContext, t: number, voice: Voice, gain: number) {
+function tone(
+  ctx: AudioContext,
+  t: number,
+  voice: Voice,
+  gain: number,
+  dest: AudioNode = ctx.destination,
+) {
   const osc = ctx.createOscillator();
   const amp = ctx.createGain();
   osc.type = voice.type;
@@ -28,14 +34,20 @@ function tone(ctx: AudioContext, t: number, voice: Voice, gain: number) {
   }
   amp.gain.exponentialRampToValueAtTime(FLOOR, peak + voice.decay);
   osc.connect(amp);
-  amp.connect(ctx.destination);
+  amp.connect(dest);
   osc.start(t);
   osc.stop(peak + voice.decay + 0.005);
 }
 
-export function playTick(ctx: AudioContext, kind: TickKind, t: number, gain: number) {
+export function playTick(
+  ctx: AudioContext,
+  kind: TickKind,
+  t: number,
+  gain: number,
+  dest?: AudioNode,
+) {
   if (kind === 'rest' || gain <= 0) return;
-  tone(ctx, t, VOICES[kind], gain);
+  tone(ctx, t, VOICES[kind], gain, dest);
 }
 
 /** REQ-SND-2: сигнал конца шага — два тона 880 и 1320 Гц через 170 мс. */
