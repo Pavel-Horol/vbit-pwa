@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { applyStress, toSyllables } from '@/core/stress';
+import { applyStress, needsStressCheck, toggleStress, toSyllables, wordKey } from '@/core/stress';
 import { syllabifyLine } from '@/core/syllabify';
-import type { StressDict } from '@/core/types';
+import type { StressDict, Syllable } from '@/core/types';
 
 const run = (line: string, overrides: Record<string, number> = {}, lineStart = true) =>
   applyStress(toSyllables(syllabifyLine(line)), { overrides, lineStart }).map(
@@ -153,5 +153,46 @@ describe('REQ-STR-5: service words, one-syllable words', () => {
   });
   it('кто-то: «то» is a service word', () => {
     expect(runDict('кто-то')).toEqual(['кто*:dict', 'то:none']);
+  });
+});
+
+describe('REQ-STR-7: toggling stress from the preview', () => {
+  it('tap on an unstressed syllable → override to it', () => {
+    expect(toggleStress({}, 'мама', 1, 0, 0)).toEqual({ мама: 1 });
+  });
+  it('tap on the stressed syllable → no stress (-1)', () => {
+    expect(toggleStress({}, 'мама', 0, 0, 0)).toEqual({ мама: -1 });
+  });
+  it('override equal to the automatic result is removed', () => {
+    expect(toggleStress({ мама: 1 }, 'мама', 0, 1, 0)).toEqual({});
+    expect(toggleStress({ замок: 0 }, 'замок', 0, 0, -1)).toEqual({});
+  });
+  it('other words are untouched', () => {
+    expect(toggleStress({ папа: 0 }, 'мама', 1, -1, -1)).toEqual({ папа: 0, мама: 1 });
+  });
+  it('needsStressCheck: 2+ syllables, nothing stressed, not set by the user', () => {
+    const syl = (text: string, over: Partial<Syllable> = {}): Syllable => ({
+      text,
+      stressed: false,
+      wordId: 0,
+      onset: '',
+      stressSource: 'none',
+      ...over,
+    });
+    expect(needsStressCheck([syl('ма'), syl('ма')])).toBe(true);
+    expect(needsStressCheck([syl('дом')])).toBe(false);
+    expect(needsStressCheck([syl('ма', { stressed: true, stressSource: 'dict' }), syl('ма')])).toBe(
+      false,
+    );
+    expect(
+      needsStressCheck([syl('ма', { stressSource: 'user' }), syl('ма', { stressSource: 'user' })]),
+    ).toBe(false);
+  });
+  it('wordKey matches the key used for overrides', () => {
+    const syls = applyStress(toSyllables(syllabifyLine('Кор+аллы')), {
+      overrides: {},
+      lineStart: true,
+    });
+    expect(wordKey(syls)).toBe('кораллы');
   });
 });

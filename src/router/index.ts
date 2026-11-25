@@ -31,10 +31,16 @@ export const router = createRouter({
       path: '/texts',
       name: 'texts',
       component: () => import('@/views/TextsView.vue'),
+      meta: { tab: 'texts', title: 'Тексты' },
+    },
+    {
+      path: '/texts/:id',
+      name: 'text',
+      component: () => import('@/views/TextEditView.vue'),
       meta: { tab: 'texts', title: 'Текст' },
     },
     {
-      path: '/drill',
+      path: '/texts/:id/drill',
       name: 'drill',
       component: () => import('@/views/LineDrillView.vue'),
       meta: { tab: 'texts', title: 'Разбор строки' },

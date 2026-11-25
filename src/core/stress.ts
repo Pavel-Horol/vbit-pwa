@@ -110,3 +110,33 @@ export function applyStress(syls: Syllable[], opts: StressOptions): Syllable[] {
   }
   return out;
 }
+
+/** Ключ слова в `stressOverrides`: слоги слова подряд, нижний регистр. */
+export const wordKey = (word: Syllable[]) =>
+  word
+    .map((s) => letters(s.text))
+    .join('')
+    .toLowerCase();
+
+/** REQ-STR-7: слово из 2+ слогов без ударения, которое пользователь ещё не правил. */
+export const needsStressCheck = (word: Syllable[]) =>
+  word.length >= 2 && !word.some((s) => s.stressed || s.stressSource === 'user');
+
+/**
+ * REQ-STR-7: тап по слогу `idx` слова `key`. `current` — индекс ударного слога сейчас, `auto` — без
+ * правки пользователя (−1 — нет ударения). Тап по ударному слогу снимает ударение. Если результат
+ * совпадает с автоматическим, правка удаляется.
+ */
+export function toggleStress(
+  overrides: Record<string, number>,
+  key: string,
+  idx: number,
+  current: number,
+  auto: number,
+): Record<string, number> {
+  const target = current === idx ? -1 : idx;
+  const next = { ...overrides };
+  if (target === auto) delete next[key];
+  else next[key] = target;
+  return next;
+}
