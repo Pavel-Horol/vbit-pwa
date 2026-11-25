@@ -6,13 +6,16 @@ export const BPM_MIN = 40;
 export const BPM_MAX = 180;
 export const clampBpm = (bpm: number) => Math.max(BPM_MIN, Math.min(BPM_MAX, Math.round(bpm)));
 
-/** REQ-SND (этап 1): ударный слог звучит тем же тиком, что безударный; «деревянный» клик — этап 2. */
+/** REQ-SND: громкости по умолчанию. Тики безударных = 0.14 × tickVolume × множитель ступени. */
 export const UNSTRESSED_GAIN = 0.14;
+export const STRESSED_GAIN = 0.33;
 export const BEAT_GAIN = 0.55;
-export const baseMix = (tickVolume: number, multiplier = 1): Mix => {
-  const tick = UNSTRESSED_GAIN * tickVolume * multiplier;
-  return { downbeat: BEAT_GAIN, beat: BEAT_GAIN, stressed: tick, unstressed: tick };
-};
+export const baseMix = (tickVolume: number, multiplier = 1): Mix => ({
+  downbeat: BEAT_GAIN,
+  beat: BEAT_GAIN,
+  stressed: STRESSED_GAIN,
+  unstressed: UNSTRESSED_GAIN * tickVolume * multiplier,
+});
 
 export function beatEvents(
   bar: Bar,

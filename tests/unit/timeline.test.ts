@@ -196,8 +196,9 @@ describe('REQ-LAY-3: pickup in count-in and loop', () => {
 });
 
 describe('mix and tempo', () => {
-  it('baseMix: unstressed ticks 0.14 × tickVolume × multiplier', () => {
-    expect(baseMix(1)).toEqual({ downbeat: 0.55, beat: 0.55, stressed: 0.14, unstressed: 0.14 });
+  it('baseMix: unstressed ticks 0.14 × tickVolume × multiplier, stressed click 0.33 (REQ-SND)', () => {
+    expect(baseMix(1)).toEqual({ downbeat: 0.55, beat: 0.55, stressed: 0.33, unstressed: 0.14 });
+    expect(baseMix(0).stressed).toBe(0.33);
     expect(baseMix(0.5).unstressed).toBeCloseTo(0.07);
     expect(baseMix(1, 0).unstressed).toBe(0);
   });
