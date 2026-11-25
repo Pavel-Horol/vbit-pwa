@@ -5,6 +5,7 @@ import type { LadderStage, LineProgress, Syllable, Text, TimelineEvent } from '@
 import { audioNow, barAt } from '@/audio/engine';
 import { listen, type Listener } from '@/audio/mic/listener';
 import {
+  clicksDrownVoice,
   expectedSyllable,
   loopOf,
   SCORE_STRESSED_ONLY,
@@ -326,6 +327,10 @@ defineExpose({
       </p>
       <p v-if="micError" class="err" role="status">{{ micError }}</p>
       <MicResult v-if="micOn && micScore" :score="micScore" />
+      <p v-if="micOn && micScore && clicksDrownVoice(micScore)" class="small" role="status">
+        Слоги на долях не слышны — похоже, щелчки в микрофоне громче голоса. Сделай звук тише или
+        надень проводные наушники.
+      </p>
     </div>
 
     <div class="rate">

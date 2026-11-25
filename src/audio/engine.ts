@@ -26,6 +26,8 @@ type Session = {
   bars: Map<number, Bar>;
   clock: Clock;
   queue: TimelineEvent[];
+  /** Начало проигрывания: отсчёт и первые такты — для слушателей, подключившихся позже. */
+  history: TimelineEvent[];
   timer: ReturnType<typeof setInterval>;
   raf: number;
 };
@@ -34,8 +36,14 @@ let ctx: AudioContext | null = null;
 let current: Session | null = null;
 const scheduledListeners = new Set<(e: TimelineEvent) => void>();
 
-/** REQ-MIC: все запланированные щелчки (для масок детектора и записи проверки). */
-export function onScheduled(fn: (e: TimelineEvent) => void): () => void {
+const HISTORY_MAX = 256;
+
+/**
+ * REQ-MIC: все запланированные события (маски щелчков, запись проверки). `replay` — сначала
+ * отдать уже запланированные в текущем проигрывании (микрофон включается после старта).
+ */
+export function onScheduled(fn: (e: TimelineEvent) => void, replay = false): () => void {
+  if (replay) current?.history.forEach(fn);
   scheduledListeners.add(fn);
   return () => scheduledListeners.delete(fn);
 }
@@ -83,6 +91,7 @@ function tick() {
   for (const e of r.events) {
     playTick(ctx, e.kind, e.time, e.gain);
     s.queue.push(e);
+    if (s.history.length < HISTORY_MAX) s.history.push(e);
     for (const fn of scheduledListeners) fn(e);
   }
 }
@@ -106,6 +115,7 @@ export function play(opts: PlayOptions) {
     bars: new Map(),
     clock: createClock(c.currentTime + START_DELAY_S),
     queue: [],
+    history: [],
     timer: setInterval(tick, SCHEDULER_INTERVAL_MS),
     raf: 0,
   };

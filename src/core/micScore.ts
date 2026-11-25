@@ -180,3 +180,53 @@ export function clickMask(
     minLevel: clickLevel + 20 * Math.log10(gain / BEAT_GAIN) + MASK_MARGIN_DB,
   };
 }
+
+// --- громкость щелчков по отсчёту ---
+// Перед текстом всегда такт отсчёта (REQ-AUD-9): пользователь молчит, звучат щелчки долей.
+// По первым трём меряем, насколько громко микрофон слышит метроном прямо сейчас: в наушниках —
+// никак (маски не нужны), из динамика — с текущей громкостью.
+
+export type CountInLevel = { observed: number; heard: number; level: number | null };
+
+/** `readyAt` — время первого звука с микрофона; щелчки раньше него не наблюдались. */
+export function countInClickLevel(
+  clicks: number[],
+  onsets: Onset[],
+  inputOffsetMs: number,
+  readyAt: number,
+): CountInLevel {
+  const io = inputOffsetMs / 1000;
+  const observed = clicks.filter((c) => c + io - EARLY_S >= readyAt);
+  const levels: number[] = [];
+  for (const c of observed) {
+    let best: Onset | undefined;
+    for (const o of onsets)
+      if (o.time >= c + io - 0.03 && o.time <= c + io + 0.05 && (!best || o.level > best.level))
+        best = o;
+    if (best) levels.push(best.level);
+  }
+  return {
+    observed: observed.length,
+    heard: levels.length,
+    level: levels.length ? Math.round(median(levels) * 10) / 10 : null,
+  };
+}
+
+/**
+ * Порог масок: по отсчёту, если увидели хотя бы 2 щелчка (не услышали — масок нет: наушники);
+ * иначе — громкость из калибровки входа. null — без масок.
+ */
+export function maskLevel(c: CountInLevel, calibrated?: number): number | null {
+  if (c.observed >= 2) return c.level;
+  return c.heard ? c.level : (calibrated ?? null);
+}
+
+/** Слоги на долях пропали, а между долями слышны — похоже, щелчки громче голоса. */
+export function clicksDrownVoice(score: LoopScore): boolean {
+  const onBeat = score.marks.filter((m) => m.key.endsWith(':0'));
+  const between = score.marks.filter((m) => !m.key.endsWith(':0'));
+  const missed = (xs: SyllableMark[]) => xs.filter((m) => m.mark === 'miss').length / xs.length;
+  return (
+    onBeat.length >= 2 && between.length >= 2 && missed(onBeat) >= 0.5 && missed(between) <= 0.25
+  );
+}

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   clickMask,
+  clicksDrownVoice,
+  countInClickLevel,
+  maskLevel,
   expectedSyllable,
   loopOf,
   micCalibration,
@@ -161,5 +164,63 @@ describe('click masks (stage 4 decision A)', () => {
     expect(m.end).toBeCloseTo(10.12 + 0.06, 9);
     expect(m.minLevel).toBeCloseTo(-24, 9);
     expect(clickMask(10, BEAT_GAIN / 2, 120, -30).minLevel).toBeCloseTo(-24 - 6.02, 2);
+  });
+});
+
+describe('click level from the count-in (masks follow the real output: speaker or headphones)', () => {
+  const clicks = [1, 1.5, 2];
+  const heard = (io: number, levels: (number | null)[]) =>
+    levels.flatMap((l, i) => (l === null ? [] : [{ time: clicks[i]! + io / 1000, level: l }]));
+
+  it('median level of the count-in clicks the mic heard', () => {
+    expect(countInClickLevel(clicks, heard(100, [-30, -28, -33]), 100, 0)).toEqual({
+      observed: 3,
+      heard: 3,
+      level: -30,
+    });
+  });
+
+  it('clicks before the mic was ready are not observed', () => {
+    expect(countInClickLevel(clicks, heard(100, [null, -28, -32]), 100, 1.2)).toEqual({
+      observed: 2,
+      heard: 2,
+      level: -30,
+    });
+  });
+
+  it('headphones: observed but not heard → no masks', () => {
+    const c = countInClickLevel(clicks, [], 100, 0);
+    expect(c).toEqual({ observed: 3, heard: 0, level: null });
+    expect(maskLevel(c, -30)).toBeNull();
+  });
+
+  it('count-in missed (mic switched on mid-play) → calibrated level', () => {
+    const c = countInClickLevel(clicks, [], 100, 5);
+    expect(c.observed).toBe(0);
+    expect(maskLevel(c, -30)).toBe(-30);
+    expect(maskLevel(c)).toBeNull();
+    expect(maskLevel({ observed: 2, heard: 1, level: -40 }, -30)).toBe(-40);
+  });
+});
+
+describe('hint: metronome drowns the voice', () => {
+  const m = (key: string, mark: 'ok' | 'miss') => ({ key, text: 'та', stressed: false, mark });
+  const score = (marks: ReturnType<typeof m>[]) => ({ ...scoreLoop([], [], 0), marks });
+
+  it('on-beat syllables missing while the others are heard', () => {
+    expect(
+      clicksDrownVoice(
+        score([m('0:0:0', 'miss'), m('0:0:1', 'ok'), m('0:1:0', 'miss'), m('0:1:1', 'ok')]),
+      ),
+    ).toBe(true);
+  });
+
+  it('everything missing (silence) or on-beat heard → no hint', () => {
+    expect(clicksDrownVoice(score([m('0:0:0', 'miss'), m('0:0:1', 'miss')]))).toBe(false);
+    expect(
+      clicksDrownVoice(
+        score([m('0:0:0', 'ok'), m('0:0:1', 'ok'), m('0:1:0', 'ok'), m('0:1:1', 'miss')]),
+      ),
+    ).toBe(false);
   });
 });
