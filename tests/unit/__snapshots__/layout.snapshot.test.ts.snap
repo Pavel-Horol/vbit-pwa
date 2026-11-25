@@ -1,0 +1,77 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`REQ-LAY-6: layout snapshots > empty input 1`] = `
+{
+  "bars": [],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > empty input 2`] = `
+{
+  "bars": [],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > empty input 3`] = `
+{
+  "bars": [],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > line of only _ 1`] = `
+{
+  "bars": [
+    "_ _ | _ | _ | _",
+  ],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > pickup: > на дво- | РЕ тра- | ВА на тра- | ВЕ дро- | ВА 1`] = `
+{
+  "bars": [
+    "РЕ* тра | ВА* на тра | ВЕ* дро | ВА*",
+  ],
+  "pickup": "^на дво",
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > «Карл у Клары» (manual) 1`] = `
+{
+  "bars": [
+    "КАРЛ* у | КЛА* ры у | КРАЛ* ко | РАЛ* лы",
+  ],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > «Шла Саша по шоссе и сосала сушку» (auto, 2) 1`] = `
+{
+  "bars": [
+    "Шла* Са | ша по | шо ссе* | и со",
+    "са* ла | су* шку | _ | _",
+  ],
+  "pickup": null,
+  "warnings": [],
+}
+`;
+
+exports[`REQ-LAY-6: layout snapshots > «Шла Саша по шоссе и сосала сушку» (stress) 1`] = `
+{
+  "bars": [
+    "Шла* Са ша | по шо | ссе* и со | са* ла",
+    "су* шку | _ | _ | _",
+  ],
+  "pickup": null,
+  "warnings": [],
+}
+`;
