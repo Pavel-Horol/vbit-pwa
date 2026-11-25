@@ -8,7 +8,7 @@ const tabs: { tab: Tab; to: string; label: string }[] = [
   { tab: 'home', to: '/', label: 'Главная' },
   { tab: 'session', to: '/session', label: 'Тренировка' },
   { tab: 'metronome', to: '/metronome', label: 'Метроном' },
-  { tab: 'texts', to: '/texts', label: 'Тексты' },
+  { tab: 'texts', to: '/texts', label: 'Текст' },
 ];
 </script>
 

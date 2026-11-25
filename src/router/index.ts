@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import HomeView from '@/views/HomeView.vue';
+import { stop } from '@/audio/engine';
 
 export type Tab = 'home' | 'session' | 'metronome' | 'texts';
 
@@ -30,7 +31,7 @@ export const router = createRouter({
       path: '/texts',
       name: 'texts',
       component: () => import('@/views/TextsView.vue'),
-      meta: { tab: 'texts', title: 'Тексты' },
+      meta: { tab: 'texts', title: 'Текст' },
     },
     {
       path: '/drill',
@@ -53,6 +54,11 @@ export const router = createRouter({
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior: () => ({ top: 0 }),
+});
+
+// REQ-AUD-8: смена экрана останавливает звук.
+router.beforeEach(() => {
+  stop();
 });
 
 router.afterEach((to) => {

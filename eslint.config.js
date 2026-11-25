@@ -18,6 +18,9 @@ export default defineConfigWithVueTs(
   {
     name: 'app/no-dialogs',
     rules: {
+      // Имена компонентов заданы SPEC (REQ-TECH-2).
+      'vue/multi-word-component-names': ['error', { ignores: ['Pad'] }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-alert': 'error',
       'no-restricted-globals': ['error', 'alert', 'confirm', 'prompt'],
     },
