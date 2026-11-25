@@ -7,6 +7,8 @@ import { applyRoot, snapshotRoot } from '@/stores/persist';
 import { useProgressStore } from '@/stores/progress';
 import { useSettingsStore } from '@/stores/settings';
 import TickVolume from '@/components/TickVolume.vue';
+import { isNative } from '@/platform/native';
+import { saveTextFile } from '@/platform/saveFile';
 
 const settings = useSettingsStore();
 const progress = useProgressStore();
@@ -49,16 +51,17 @@ function resetCal() {
 onBeforeUnmount(() => session?.cancel());
 
 // --- REQ-DATA-3: экспорт / импорт ---
-function download() {
-  const blob = new Blob([exportData(snapshotRoot())], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `v-bit-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+// В APK файл уходит в системное меню «Поделиться» (этап 3).
+const exportLabel = isNative() ? 'Сохранить копию' : 'Скачать копию';
+const exportError = ref('');
+async function download() {
+  exportError.value = '';
+  const name = `v-bit-${new Date().toISOString().slice(0, 10)}.json`;
+  try {
+    await saveTextFile(name, exportData(snapshotRoot()), 'application/json');
+  } catch {
+    exportError.value = 'Не получилось сохранить файл. Попробуй ещё раз.';
+  }
 }
 
 const pendingImport = ref<{ name: string; root: RootData } | null>(null);
@@ -76,7 +79,7 @@ async function onFile(e: Event) {
   if (!r.ok) {
     importError.value =
       r.error === 'not_json'
-        ? 'Это не JSON-файл. Выбери файл, который скачал кнопкой «Скачать копию».'
+        ? `Это не JSON-файл. Выбери файл, который сохранил кнопкой «${exportLabel}».`
         : 'В файле нет данных «В бит».';
     return;
   }
@@ -151,7 +154,7 @@ function confirmImport() {
         случай. Аудиозаписи в файл не входят.
       </p>
       <div class="row">
-        <button type="button" @click="download">Скачать копию</button>
+        <button type="button" @click="download">{{ exportLabel }}</button>
         <button type="button" @click="fileInput?.click()">Загрузить из файла</button>
         <input
           ref="fileInput"
@@ -162,6 +165,10 @@ function confirmImport() {
           @change="onFile"
         />
       </div>
+      <p v-if="isNative()" class="small mute" style="margin: 0">
+        Откроется меню «Поделиться» — выбери Диск, Файлы или мессенджер.
+      </p>
+      <p v-if="exportError" class="err" role="status">{{ exportError }}</p>
       <p v-if="importError" class="err" role="status">{{ importError }}</p>
       <p v-if="importDone" class="small" role="status">Данные загружены.</p>
       <div
