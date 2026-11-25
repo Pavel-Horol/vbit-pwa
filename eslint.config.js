@@ -10,6 +10,7 @@ export default defineConfigWithVueTs(
     '**/dev-dist/**',
     '**/coverage/**',
     'prototype/**',
+    'android/**',
     'playwright-report/**',
     'test-results/**',
   ]),

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- REQ-VIS-5: тема из прототипа -->
+    <color name="vbit_bg">#17131C</color>
+    <color name="vbit_accent">#FF5A3C</color>
+    <color name="colorPrimary">#17131C</color>
+    <color name="colorPrimaryDark">#17131C</color>
+    <color name="colorAccent">#FF5A3C</color>
+</resources>

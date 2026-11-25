@@ -15,15 +15,24 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "typecheck": "vue-tsc --build",
-    "dict": "node scripts/build-stress-dict.mjs"
+    "dict": "node scripts/build-stress-dict.mjs",
+    "build:android": "NATIVE=1 BASE_PATH=/ npm run build && cap sync android",
+    "apk": "npm run build:android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
     "idb-keyval": "^6.3.0",
     "pinia": "^4.1.0",
     "vue": "^3.5.46",
     "vue-router": "^5.5.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@playwright/test": "^1.65.1",
     "@types/node": "^22.20.6",
     "@vitejs/plugin-vue": "^6.0.11",
