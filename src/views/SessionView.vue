@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import type { Bar } from '@/core/types';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import type { Bar, Text } from '@/core/types';
 import { drillBar } from '@/core/patterns';
 import { layout } from '@/core/layout';
 import { nonEmptyLines } from '@/core/parse';
@@ -12,7 +12,9 @@ import { useSessionStore } from '@/stores/session';
 import { useSettingsStore } from '@/stores/settings';
 import { useProgressStore } from '@/stores/progress';
 import { useTextsStore } from '@/stores/texts';
+import { defaultText } from '@/stores/schema';
 import BarPlayer from '@/components/BarPlayer.vue';
+import LineDrill from '@/components/LineDrill.vue';
 import BreathTimer from '@/components/BreathTimer.vue';
 import CountRecord from '@/components/CountRecord.vue';
 import StepTimer from '@/components/StepTimer.vue';
@@ -26,9 +28,23 @@ const done = computed(() => session.index >= STEPS.length);
 const step = computed(() => STEPS[session.index]);
 const weekBpm = computed(() => WEEKS[settings.week - 1]!.bpm);
 const running = ref(false);
-const player = ref<InstanceType<typeof BarPlayer> | null>(null);
+/** BarPlayer или LineDrill (шаг mytext) — у обоих start/stop. */
+const player = ref<{ start: () => void; stop: () => void } | null>(null);
 
-// --- ритм-шаги (REQ-SES-2, REQ-SES-5 в объёме прототипа) ---
+// --- REQ-SES-5: шаг mytext — LineDrill по строке с наименьшей ступенью текущего текста ---
+// Без своего текста — пример «Шла Саша» (прогресс примера не сохраняется).
+const sample = PRESETS[1]!;
+const sampleText = reactive<Text>({
+  ...defaultText(),
+  id: 'sample',
+  title: sample.name,
+  raw: sample.raw,
+  mode: sample.mode,
+  perBeat: sample.perBeat,
+});
+const drillText = computed<Text>(() => (texts.isOwn ? texts.current : sampleText));
+
+// --- ритм-шаги (REQ-SES-2) ---
 const barsOf = (raw: string, mode: 'manual' | 'auto', perBeat: 1 | 2 | 3 | 4) =>
   layout({ raw, mode, perBeat, lineStartsBar: true, stressOverrides: {} }).bars;
 
@@ -48,22 +64,6 @@ const rhythm = computed<{ getBar: (i: number) => Bar; bpm: number; tickMultiplie
       return {
         getBar: withCountIn(loopBars(barsOf(p.raw, p.mode as 'manual', p.perBeat))),
         bpm: wb,
-        tickMultiplier: 1,
-      };
-    }
-    if (kind === 'mytext') {
-      if (texts.isOwn) {
-        const t = texts.current;
-        return {
-          getBar: withCountIn(loopBars(layout(t).bars)),
-          bpm: Math.min(t.targetBpm, wb),
-          tickMultiplier: 1,
-        };
-      }
-      const p = PRESETS[1]!;
-      return {
-        getBar: withCountIn(loopBars(barsOf(p.raw, 'auto', 2))),
-        bpm: wb - 5,
         tickMultiplier: 1,
       };
     }
@@ -196,10 +196,19 @@ const progressPct = computed(() => (Math.min(session.index, STEPS.length) / STEP
           <p class="small mute" style="margin: 0 0 4px">Твоя строка</p>
           <p style="margin: 0; font-size: 18px">{{ firstLine }}</p>
         </div>
-        <template v-else-if="rhythm">
-          <p v-if="step.kind === 'mytext' && !texts.isOwn" class="small mute">
-            Свой куплет ещё не добавлен — пока тренируем пример. Добавь текст во вкладке «Текст».
+        <template v-else-if="step.kind === 'mytext'">
+          <p v-if="!texts.isOwn" class="small mute">
+            Свой куплет ещё не добавлен — пока тренируем пример. Добавь текст во вкладке «Тексты».
           </p>
+          <LineDrill
+            ref="player"
+            :key="drillText.id"
+            :text="drillText"
+            :own-start="false"
+            @stopped="onPlayerStopped"
+          />
+        </template>
+        <template v-else-if="rhythm">
           <BarPlayer
             ref="player"
             v-model:bpm="playerBpm"
