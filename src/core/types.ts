@@ -42,6 +42,10 @@ export type Settings = {
   leadMs: number; // 0..150, упреждение подсветки
   outputOffsetMs: number; // калибровка вывода звука, >= 0
   inputOffsetMs?: number; // калибровка микрофона (этап 4)
+  /** REQ-MIC-3: громкость щелчка в микрофоне при калибровке, дБ — порог масок щелчков. */
+  micClickDb?: number;
+  /** REQ-MIC-4: оценивать круги по микрофону (переключатель в LineDrill). */
+  micScoring?: boolean;
 };
 export type Progress = {
   days: string[]; // 'YYYY-MM-DD' по локальному времени

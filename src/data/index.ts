@@ -4,7 +4,7 @@ import stepsJson from './steps.json';
 import weeksJson from './weeks.json';
 import presetsJson from './presets.json';
 
-export type StepKind = 'breath' | 'count' | 'ends' | 'drill' | 'karl' | 'mytext';
+export type StepKind = 'breath' | 'count' | 'ends' | 'drill' | 'karl' | 'mytext' | 'record';
 export type Step = {
   block: string;
   title: string;

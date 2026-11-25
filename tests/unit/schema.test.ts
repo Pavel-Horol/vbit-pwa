@@ -103,6 +103,7 @@ describe('REQ-SES-1: steps data', () => {
       'drill',
       'karl',
       'mytext',
+      'record', // REQ-MIC-5, решение этапа 4
     ]);
   });
   it('REQ-SES-2: week BPMs 75/80/85/90', () => {
@@ -183,5 +184,27 @@ describe('REQ-DATA-3: export / import', () => {
       leadMs: 150,
       outputOffsetMs: 0,
     });
+  });
+
+  it('stage 4 settings and recordings are sanitized', () => {
+    const r = parseImport(
+      JSON.stringify({
+        app: 'vbit',
+        settings: { inputOffsetMs: 900, micClickDb: -31.5, micScoring: true },
+        progress: {
+          recordings: [{ date: '2026-11-25', blobKey: 'rec:2026-11-25' }, { date: 'x' }],
+        },
+      }),
+    );
+    expect(r.ok && r.root.settings).toMatchObject({
+      inputOffsetMs: 600,
+      micClickDb: -31.5,
+      micScoring: true,
+    });
+    // аудиозаписи в импорт не входят (REQ-DATA-3), но хранилище их санитизирует
+    const m = migrate({
+      progress: { recordings: [{ date: '2026-11-25', blobKey: 'rec:2026-11-25' }, { date: 'x' }] },
+    });
+    expect(m.progress.recordings).toEqual([{ date: '2026-11-25', blobKey: 'rec:2026-11-25' }]);
   });
 });

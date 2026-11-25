@@ -11,6 +11,8 @@ import type {
 } from '@/core/types';
 import { clampBpm } from '@/core/timeline';
 import { initialProgress } from '@/core/ladder';
+import { MIC_CAL_MAX_MS } from '@/core/micScore';
+import type { Recording } from '@/core/recordings';
 import { PRESETS } from '@/data';
 
 export const SCHEMA_VERSION = 1;
@@ -76,7 +78,10 @@ function sanitizeSettings(v: unknown, d: Settings): Settings {
     leadMs: num(s.leadMs, d.leadMs, 0, 150),
     outputOffsetMs: num(s.outputOffsetMs, d.outputOffsetMs, 0, 400),
   };
-  if (typeof s.inputOffsetMs === 'number') out.inputOffsetMs = num(s.inputOffsetMs, 0, 0, 400);
+  if (typeof s.inputOffsetMs === 'number')
+    out.inputOffsetMs = num(s.inputOffsetMs, 0, 0, MIC_CAL_MAX_MS);
+  if (typeof s.micClickDb === 'number') out.micClickDb = num(s.micClickDb, -40, -120, 0);
+  if (typeof s.micScoring === 'boolean') out.micScoring = s.micScoring;
   return out;
 }
 
@@ -87,7 +92,17 @@ function sanitizeProgress(v: unknown, d: Progress): Progress {
     sessions: Math.round(num(p.sessions, d.sessions, 0)),
     breathBestSec: num(p.breathBestSec, d.breathBestSec, 0),
     countBest: Math.round(num(p.countBest, d.countBest, 0, 300)),
-    ...(Array.isArray(p.recordings) ? { recordings: p.recordings as Progress['recordings'] } : {}),
+    ...(Array.isArray(p.recordings)
+      ? {
+          recordings: p.recordings.filter(
+            (r): r is Recording =>
+              isObj(r) &&
+              typeof r.date === 'string' &&
+              DAY.test(r.date) &&
+              typeof r.blobKey === 'string',
+          ),
+        }
+      : {}),
   };
 }
 

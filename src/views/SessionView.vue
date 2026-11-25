@@ -19,6 +19,7 @@ import LineDrill from '@/components/LineDrill.vue';
 import BreathTimer from '@/components/BreathTimer.vue';
 import CountRecord from '@/components/CountRecord.vue';
 import StepTimer from '@/components/StepTimer.vue';
+import RecordStep from '@/components/RecordStep.vue';
 
 const session = useSessionStore();
 const settings = useSettingsStore();
@@ -29,8 +30,8 @@ const done = computed(() => session.index >= STEPS.length);
 const step = computed(() => STEPS[session.index]);
 const weekBpm = computed(() => WEEKS[settings.week - 1]!.bpm);
 const running = ref(false);
-/** BarPlayer или LineDrill (шаг mytext) — у обоих start/stop. */
-const player = ref<{ start: () => void; stop: () => void } | null>(null);
+/** BarPlayer, LineDrill (шаг mytext) или RecordStep — у всех start/stop; запись ещё и finish. */
+const player = ref<{ start: () => void; stop: () => void; finish?: () => void } | null>(null);
 
 // --- REQ-SES-5: шаг mytext — LineDrill по строке с наименьшей ступенью текущего текста ---
 // Без своего текста — пример «Шла Саша» (прогресс примера не сохраняется).
@@ -114,6 +115,7 @@ function start() {
     session.left--;
     if (session.left <= 0) {
       stopTimer();
+      player.value?.finish?.(); // REQ-MIC-5: запись сохраняется на нуле
       chime();
     }
   }, 1000);
@@ -210,6 +212,11 @@ const progressPct = computed(() => (Math.min(session.index, STEPS.length) / STEP
             @stopped="onPlayerStopped"
           />
         </template>
+        <RecordStep
+          v-else-if="step.kind === 'record'"
+          ref="player"
+          :text-id="texts.isOwn ? texts.current.id : undefined"
+        />
         <template v-else-if="rhythm">
           <BarPlayer
             ref="player"
