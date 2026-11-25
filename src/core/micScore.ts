@@ -38,6 +38,8 @@ export type LoopScore = {
 };
 
 export const ON_TIME_MS = 40;
+/** REQ-MIC-6: откат на оценку только ударных, если детектор не пройдёт проверку на записях. */
+export const SCORE_STRESSED_ONLY = false;
 export const CLEAN_SHARE = 0.85;
 
 /** REQ-LAD-3: номер круга по такту; такт 0 — отсчёт (−1). */

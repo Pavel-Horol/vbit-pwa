@@ -30,7 +30,7 @@ const props = withDefaults(
     mode: 'syllables',
   },
 );
-const emit = defineEmits<{ stopped: []; event: [e: TimelineEvent] }>();
+const emit = defineEmits<{ started: []; stopped: []; event: [e: TimelineEvent] }>();
 const bpm = defineModel<number>('bpm', { required: true });
 
 const settings = useSettingsStore();
@@ -73,6 +73,7 @@ function start() {
     },
   });
   playing.value = true;
+  emit('started');
 }
 
 function stopPlayer() {
