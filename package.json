@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "vue-tsc --build"
+    "typecheck": "vue-tsc --build",
+    "dict": "node scripts/build-stress-dict.mjs"
   },
   "dependencies": {
     "idb-keyval": "^6.3.0",

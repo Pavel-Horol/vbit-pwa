@@ -1,0 +1,10 @@
+Словарь ударений (stress.txt) построен на данных OpenRussian.org
+(https://en.openrussian.org, https://github.com/Badestrand/russian-dictionary, коммит 50e210c).
+
+Лицензия данных: Creative Commons Attribution-ShareAlike 4.0 International
+(https://creativecommons.org/licenses/by-sa/4.0/). Файл stress.txt распространяется
+на тех же условиях.
+
+Изменения: оставлены только формы из двух и более слогов; знаки ударения заменены индексом
+ударного слога; формы с «ё» записаны через «е»; записи сжаты фронт-кодированием.
+Скрипт сборки: scripts/build-stress-dict.mjs.

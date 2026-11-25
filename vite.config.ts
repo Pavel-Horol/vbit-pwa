@@ -31,7 +31,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2,json}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2,json,txt}'],
+        // словарь ударений (REQ-STR-4) ~3,7 МБ без сжатия — должен попасть в офлайн-кэш
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: 'index.html',
         clientsClaim: true,
         skipWaiting: true,
