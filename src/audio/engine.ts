@@ -32,6 +32,16 @@ type Session = {
 
 let ctx: AudioContext | null = null;
 let current: Session | null = null;
+const scheduledListeners = new Set<(e: TimelineEvent) => void>();
+
+/** REQ-MIC: все запланированные щелчки (для масок детектора и записи проверки). */
+export function onScheduled(fn: (e: TimelineEvent) => void): () => void {
+  scheduledListeners.add(fn);
+  return () => scheduledListeners.delete(fn);
+}
+
+/** Текущее время AudioContext; null — звук ещё не включали. */
+export const audioNow = (): number | null => ctx?.currentTime ?? null;
 
 /** REQ-AUD-6: создавать/возобновлять только из обработчика жеста пользователя. */
 export function unlockAudio(): AudioContext {
@@ -73,6 +83,7 @@ function tick() {
   for (const e of r.events) {
     playTick(ctx, e.kind, e.time, e.gain);
     s.queue.push(e);
+    for (const fn of scheduledListeners) fn(e);
   }
 }
 
