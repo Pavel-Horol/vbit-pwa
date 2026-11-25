@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  completedLoops,
+  drillLayout,
   initialProgress,
   lowestStageLine,
   mixForStage,
@@ -152,5 +154,37 @@ describe('REQ-SES-5: line to drill', () => {
     expect(lowestStageLine(3, [lp({ stage: 3 }), lp({ stage: 2 }), lp({ stage: 2 })])).toBe(1);
     expect(lowestStageLine(3, [lp({ stage: 3 })])).toBe(1);
     expect(lowestStageLine(0, [])).toBe(-1);
+  });
+});
+
+describe('REQ-LAD-3: loops', () => {
+  it('completedLoops: bar 0 is the count-in, a loop ends when the next one starts', () => {
+    expect([0, 1, 2, 3, 4, 5, 7].map((b) => completedLoops(b, 2))).toEqual([0, 0, 0, 1, 1, 2, 3]);
+  });
+  it('drillLayout: selected lines only, always from a new bar, with the loop pickup', () => {
+    const r = drillLayout(
+      {
+        raw: 'та | та\n\n> на | ТЫ\nко',
+        mode: 'manual',
+        perBeat: 2,
+        lineStartsBar: false,
+        stressOverrides: {},
+      },
+      1,
+      1,
+    );
+    expect(r.loop.map((bar) => bar.map((b) => b.syllables.map((s) => s.text || '_')))).toEqual([
+      [['ТЫ'], ['_'], ['_'], ['_', 'на']],
+    ]);
+    expect(r.pickup?.syllables.map((s) => s.text || '_')).toEqual(['_', 'на']);
+    expect(r.lines).toHaveLength(1);
+  });
+  it('drillLayout clips the range to the text', () => {
+    const r = drillLayout(
+      { raw: 'та\nка', mode: 'auto', perBeat: 1, lineStartsBar: false, stressOverrides: {} },
+      1,
+      4,
+    );
+    expect(r.lines).toHaveLength(1);
   });
 });

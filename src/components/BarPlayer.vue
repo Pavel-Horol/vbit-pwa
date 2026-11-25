@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue';
-import type { Bar, TimelineEvent } from '@/core/types';
+import type { Bar, LadderStage, TimelineEvent } from '@/core/types';
 import { baseMix } from '@/core/timeline';
+import { mixForStage, type RenderMode } from '@/core/ladder';
 import { barAt, play, stop } from '@/audio/engine';
 import { useSettingsStore } from '@/stores/settings';
 import BarGrid from './BarGrid.vue';
@@ -16,10 +17,20 @@ const props = withDefaults(
     /** Множитель тиков слогов (0 — выключены в этом контексте). */
     tickMultiplier?: number;
     ticksOffHint?: string;
+    /** Ступень лестницы (REQ-LAD-1): громкости берутся из mixForStage. */
+    stage?: LadderStage;
+    mode?: RenderMode;
   }>(),
-  { tap: false, ownStart: true, tickMultiplier: 1, ticksOffHint: undefined },
+  {
+    tap: false,
+    ownStart: true,
+    tickMultiplier: 1,
+    ticksOffHint: undefined,
+    stage: undefined,
+    mode: 'syllables',
+  },
 );
-const emit = defineEmits<{ stopped: [] }>();
+const emit = defineEmits<{ stopped: []; event: [e: TimelineEvent] }>();
 const bpm = defineModel<number>('bpm', { required: true });
 
 const settings = useSettingsStore();
@@ -39,6 +50,7 @@ function onEvent(e: TimelineEvent) {
     liveNext.value = barAt(e.bar + 1) ?? null;
   }
   active.value = { beat: e.beat, slot: e.slot };
+  emit('event', e);
 }
 
 function start() {
@@ -46,7 +58,10 @@ function start() {
   play({
     getBar,
     bpm: () => bpm.value,
-    mix: () => baseMix(settings.tickVolume, props.tickMultiplier),
+    mix: () =>
+      props.stage
+        ? mixForStage(props.stage, settings.tickVolume)
+        : baseMix(settings.tickVolume, props.tickMultiplier),
     timing: () => ({ leadMs: settings.leadMs, outputOffsetMs: settings.outputOffsetMs }),
     onEvent,
     onStop: () => {
@@ -76,10 +91,13 @@ defineExpose({ start, stop: stopPlayer, toggle, refresh, playing });
 
 <template>
   <div class="player">
-    <BarGrid :bar="cur" :next="next" :active="active" />
+    <slot name="display" :bar="cur" :next="next" :active="active">
+      <BarGrid :bar="cur" :next="next" :active="active" :mode="mode" />
+    </slot>
     <div class="controls">
       <TempoControl v-model="bpm" :tap="tap" />
       <TickVolume :disabled-hint="tickMultiplier === 0 ? ticksOffHint : undefined" />
+      <slot name="controls"></slot>
       <button v-if="ownStart" type="button" class="pri wide" @click="toggle">
         {{ playing ? 'Стоп' : 'Старт' }}
       </button>

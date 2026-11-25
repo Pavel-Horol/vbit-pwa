@@ -1,7 +1,8 @@
 // REQ-LAD: «лестница» — ступени, которые постепенно убирают подпорки при разборе строки.
+import { layout, type LayoutInput, type LayoutResult } from './layout';
 import { nonEmptyLines } from './parse';
-import { baseMix, BPM_MIN } from './timeline';
-import type { LadderStage, LineProgress, Mix } from './types';
+import { baseMix, BPM_MIN, loopWithPickup } from './timeline';
+import type { Bar, LadderStage, LineProgress, Mix, StressDict } from './types';
 
 export type RenderMode = 'skeleton' | 'syllables' | 'words' | 'karaoke' | 'memory';
 
@@ -112,3 +113,24 @@ export function lowestStageLine(count: number, lines: LineProgress[]): number {
   }
   return best;
 }
+
+/**
+ * Раскладка для разбора строк [start, start + count): каждая строка с нового такта, `loop` — такты
+ * для игры по кругу (с затактом первой строки в конце круга, REQ-LAY-3).
+ */
+export function drillLayout(
+  text: LayoutInput,
+  start: number,
+  count: number,
+  dict?: StressDict,
+): LayoutResult & { loop: Bar[] } {
+  const raw = nonEmptyLines(text.raw)
+    .slice(start, start + count)
+    .join('\n');
+  const r = layout({ ...text, raw, lineStartsBar: true }, dict);
+  return { ...r, loop: loopWithPickup(r.bars, r.pickup) };
+}
+
+/** REQ-LAD-3: сколько кругов закончено к такту `bar` (такт 0 — отсчёт, круг — `loopBars` тактов). */
+export const completedLoops = (bar: number, loopBars: number) =>
+  bar < 1 || loopBars < 1 ? 0 : Math.floor((bar - 1) / loopBars);
