@@ -41,7 +41,7 @@ test('session: «Дальше» × 17 → final screen with streak ≥ 1', async
 
 test('texts: Karl markup → preview shows 1 bar of 4 beats', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('./#/texts');
+  await page.goto('./#/texts/main');
   await page.getByRole('button', { name: 'Разметка' }).click();
   const area = page.getByRole('textbox', { name: 'Текст для читки' });
   await area.fill('КАРЛ у | КЛА-ры у- | КРАЛ ко- | РАЛ-лы');
@@ -52,14 +52,14 @@ test('texts: Karl markup → preview shows 1 bar of 4 beats', async ({ page }) =
 });
 
 test('texts: missing | shows an inline warning', async ({ page }) => {
-  await page.goto('./#/texts');
+  await page.goto('./#/texts/main');
   await page.getByRole('button', { name: 'Разметка' }).click();
   await page.getByRole('textbox', { name: 'Текст для читки' }).fill('КАРЛ у КЛА-ры');
   await expect(page.getByTestId('layout-preview')).toContainText('Строка 1: не вижу «|»');
 });
 
 test('texts: loading a preset over own text asks in the UI', async ({ page }) => {
-  await page.goto('./#/texts');
+  await page.goto('./#/texts/main');
   await page.getByRole('textbox', { name: 'Текст для читки' }).fill('мой текст | тут');
   await page.getByLabel('Загрузить пример').selectOption({ index: 2 });
   await expect(page.getByRole('alertdialog')).toBeVisible();
@@ -90,7 +90,7 @@ test('REQ-DATA-2: imports prototype localStorage on first run', async ({ page })
     'aria-pressed',
     'true',
   );
-  await page.goto('./#/texts');
+  await page.goto('./#/texts/main');
   await expect(page.getByRole('textbox', { name: 'Текст для читки' })).toHaveValue(
     'мама мыла раму',
   );
@@ -113,7 +113,15 @@ test('settings survive a reload (IndexedDB)', async ({ page }) => {
 });
 
 test('every screen: no horizontal scroll with real content', async ({ page }) => {
-  for (const hash of ['#/', '#/session', '#/metronome', '#/texts']) {
+  for (const hash of [
+    '#/',
+    '#/session',
+    '#/metronome',
+    '#/texts',
+    '#/texts/main',
+    '#/texts/main/drill',
+    '#/settings',
+  ]) {
     await page.goto('./' + hash);
     await page.waitForLoadState('networkidle');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

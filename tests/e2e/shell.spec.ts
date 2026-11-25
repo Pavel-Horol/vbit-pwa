@@ -5,8 +5,9 @@ const screens = [
   { hash: '#/', heading: 'В бит' },
   { hash: '#/session', heading: 'Зевок с открытым горлом' },
   { hash: '#/metronome', heading: 'Метроном-слоги' },
-  { hash: '#/texts', heading: 'Мой текст в бит' },
-  { hash: '#/drill', heading: 'Разбор строки' },
+  { hash: '#/texts', heading: 'Тексты' },
+  { hash: '#/texts/main', heading: 'Текст в бит' },
+  { hash: '#/texts/main/drill', heading: 'Разбор строки' },
   { hash: '#/settings', heading: 'Настройки' },
   { hash: '#/progress', heading: 'Прогресс' },
 ];
@@ -44,7 +45,7 @@ test('bottom navigation switches screens and marks the active tab', async ({ pag
   for (const [label, heading] of [
     ['Тренировка', 'Зевок с открытым горлом'],
     ['Метроном', 'Метроном-слоги'],
-    ['Текст', 'Мой текст в бит'],
+    ['Тексты', 'Тексты'],
     ['Главная', 'В бит'],
   ] as const) {
     await nav.getByRole('link', { name: label, exact: true }).click();
@@ -99,6 +100,6 @@ test('works offline after first open', async ({ page, context }) => {
   await context.setOffline(true);
   await page.goto('./#/texts');
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Мой текст в бит' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Тексты' })).toBeVisible();
   await context.setOffline(false);
 });
