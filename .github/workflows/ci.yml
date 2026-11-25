@@ -61,6 +61,63 @@ jobs:
           path: playwright-report
           retention-days: 7
 
+  # Этап 3: debug APK (Capacitor). Артефакт — на каждый push.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v6
+      - run: npm ci
+      - name: Debug keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/debug.keystore"
+            echo "VBIT_DEBUG_KEYSTORE=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Секрет ANDROID_DEBUG_KEYSTORE не задан — APK подписан случайным ключом и не встанет поверх прошлой версии."
+          fi
+      - run: npm run build:android
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+        env:
+          VBIT_VERSION_CODE: ${{ github.run_number }}
+      - run: mv android/app/build/outputs/apk/debug/app-debug.apk v-bit.apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: v-bit-apk
+          path: v-bit.apk
+          retention-days: 30
+
+  # Прямая ссылка для телефона: pre-release apk-latest всегда указывает на последний зелёный main.
+  apk-release:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [lint, test, e2e, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { name: v-bit-apk }
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -f apk-latest
+          git push -f origin refs/tags/apk-latest
+          notes="Debug-сборка № ${{ github.run_number }}, коммит ${GITHUB_SHA::7}."
+          if gh release view apk-latest > /dev/null 2>&1; then
+            gh release edit apk-latest --prerelease --notes "$notes"
+          else
+            gh release create apk-latest --prerelease --title "APK — последняя сборка" --notes "$notes"
+          fi
+          gh release upload apk-latest v-bit.apk --clobber
+
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [lint, test, build, e2e]
