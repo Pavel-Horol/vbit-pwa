@@ -6,6 +6,7 @@ import { layout } from '@/core/layout';
 import { nonEmptyLines } from '@/core/parse';
 import { loopBars, withCountIn } from '@/core/timeline';
 import { chime, unlockAudio } from '@/audio/engine';
+import { onAppHidden } from '@/platform/lifecycle';
 import { PRESETS, STEPS, WEEKS } from '@/data';
 import { plainLine, plural } from '@/lib/format';
 import { useSessionStore } from '@/stores/session';
@@ -143,15 +144,16 @@ const onPlayerStopped = () => {
   if (running.value) stopTimer();
 };
 // REQ-AUD-8: вкладка скрыта → пауза таймера.
-const onVisibility = () => {
-  if (document.visibilityState === 'hidden' && running.value) stopTimer();
-};
+// REQ-AUD-8: приложение ушло в фон — пауза таймера шага.
+let offHidden: (() => void) | undefined;
 onMounted(() => {
-  document.addEventListener('visibilitychange', onVisibility);
+  offHidden = onAppHidden(() => {
+    if (running.value) stopTimer();
+  });
   if (rhythm.value) playerBpm.value = rhythm.value.bpm;
 });
 onBeforeUnmount(() => {
-  document.removeEventListener('visibilitychange', onVisibility);
+  offHidden?.();
   stopTimer();
 });
 

@@ -2,6 +2,8 @@
 // Логика расписания — в core/timeline.ts (чистая и покрыта тестами), здесь только Web Audio.
 import { createClock, schedule, type Clock } from '@/core/timeline';
 import type { Bar, Mix, TimelineEvent } from '@/core/types';
+import { allowSleep, keepAwake } from '@/platform/wakeLock';
+import { onAppHidden } from '@/platform/lifecycle';
 import { playChime, playTick } from './voices';
 
 export const SCHEDULER_INTERVAL_MS = 25;
@@ -30,7 +32,6 @@ type Session = {
 
 let ctx: AudioContext | null = null;
 let current: Session | null = null;
-let wakeLock: WakeLockSentinel | null = null;
 
 /** REQ-AUD-6: создавать/возобновлять только из обработчика жеста пользователя. */
 export function unlockAudio(): AudioContext {
@@ -85,14 +86,6 @@ function frame() {
   s.raf = requestAnimationFrame(frame);
 }
 
-async function requestWakeLock() {
-  try {
-    wakeLock = (await navigator.wakeLock?.request('screen')) ?? null;
-  } catch {
-    wakeLock = null;
-  }
-}
-
 /** REQ-AUD-3: синглтон — новый старт останавливает текущий и вызывает его onStop. */
 export function play(opts: PlayOptions) {
   stop();
@@ -108,7 +101,7 @@ export function play(opts: PlayOptions) {
   current = session;
   tick();
   session.raf = requestAnimationFrame(frame);
-  void requestWakeLock(); // REQ-AUD-7
+  void keepAwake(); // REQ-AUD-7
 }
 
 export function stop() {
@@ -117,8 +110,7 @@ export function stop() {
   current = null;
   clearInterval(s.timer);
   cancelAnimationFrame(s.raf);
-  void wakeLock?.release().catch(() => {});
-  wakeLock = null;
+  void allowSleep();
   s.opts.onStop?.();
 }
 
@@ -130,10 +122,11 @@ export function chime() {
   }
 }
 
-// REQ-AUD-7/8: скрытие вкладки — стоп; возврат во время игры — повторный wake lock.
+// REQ-AUD-8: приложение ушло в фон — стоп.
+// REQ-AUD-7: возврат во время игры — повторный wake lock (браузер снимает его при скрытии).
 if (typeof document !== 'undefined') {
+  onAppHidden(stop);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') stop();
-    else if (current) void requestWakeLock();
+    if (document.visibilityState === 'visible' && current) void keepAwake();
   });
 }

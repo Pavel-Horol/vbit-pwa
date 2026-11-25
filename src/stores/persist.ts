@@ -6,6 +6,7 @@ import { useMetronomeStore } from './metronome';
 import { useProgressStore } from './progress';
 import { useSettingsStore } from './settings';
 import { useTextsStore } from './texts';
+import { onAppHidden } from '@/platform/lifecycle';
 
 const SAVE_DELAY_MS = 300;
 
@@ -72,7 +73,7 @@ export async function initPersistence(pinia: Pinia): Promise<void> {
   };
   for (const s of [settings, progress, texts, metronome])
     s.$subscribe(schedule, { detached: true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && timer !== undefined) flush();
+  onAppHidden(() => {
+    if (timer !== undefined) flush();
   });
 }
